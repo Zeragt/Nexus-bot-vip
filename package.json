@@ -1,0 +1,45 @@
+{
+  "name": "nexus-bot",
+  "version": "2.0.0",
+  "description": "Nexus — Discord roleplay world engine with image-rendered UI",
+  "main": "index.js",
+  "scripts": {
+    "start": "node index.js",
+    "dev": "node --watch index.js",
+    "build": "node scripts/build-check.js",
+    "lint": "eslint .",
+    "format": "prettier --write .",
+    "format:check": "prettier --check .",
+    "test": "vitest run",
+    "test:watch": "vitest",
+    "db:migrate": "node scripts/migrate.js",
+    "db:status": "node scripts/migrate.js --status",
+    "db:generate": "node scripts/new-migration.js",
+    "deploy:commands": "node scripts/deploy-commands.js",
+    "render:preview": "node scripts/render-preview.js",
+    "check": "npm run lint && npm run build && npm test",
+    "assets": "node scripts/build-assets.js",
+    "tune:bosses": "node scripts/tune-bosses.js"
+  },
+  "license": "UNLICENSED",
+  "dependencies": {
+    "@napi-rs/canvas": "^1.0.13",
+    "discord.js": "^14.27.0",
+    "pg": "^8.23.1",
+    "pino": "^10.4.0",
+    "pino-pretty": "^13.2.0",
+    "zod": "^4.6.7"
+  },
+  "devDependencies": {
+    "@eslint/js": "^10.0.1",
+    "eslint": "^10.13.0",
+    "globals": "^17.13.0",
+    "prettier": "^3.9.10",
+    "vitest": "^5.0.5"
+  },
+  "type": "module",
+  "private": true,
+  "engines": {
+    "node": ">=22"
+  }
+}

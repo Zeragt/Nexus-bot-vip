@@ -1,0 +1,103 @@
+import { Path2D } from '@napi-rs/canvas';
+
+// Stroke icons on a 24×24 grid (outline style). Drawn as vectors so they stay crisp at any size.
+const PATHS = {
+  sun: 'M12 8a4 4 0 1 0 0 8 4 4 0 1 0 0-8 M12 2v2 M12 20v2 M4.93 4.93l1.41 1.41 M17.66 17.66l1.41 1.41 M2 12h2 M20 12h2 M6.34 17.66l-1.41 1.41 M19.07 4.93l-1.41 1.41',
+  gear: 'M12 9a3 3 0 1 0 0 6 3 3 0 1 0 0-6 M12 2l1.5 2.6 3-.6.6 3L20 8.5l-1.4 2.7L20 14l-2.9 1.4-.6 3-3-.6L12 22l-1.5-2.6-3 .6-.6-3L4 15.5l1.4-2.7L4 10l2.9-1.4.6-3 3 .6z',
+  target: 'M12 2a10 10 0 1 0 0 20 10 10 0 1 0 0-20 M12 6a6 6 0 1 0 0 12 6 6 0 1 0 0-12 M12 10a2 2 0 1 0 0 4 2 2 0 1 0 0-4',
+  feather: 'M20.24 12.24a6 6 0 0 0-8.49-8.49L5 10.5V19h8.5z M16 8 2 22 M17.5 15H9',
+  moon: 'M12 3a6 6 0 0 0 9 9 9 9 0 1 1-9-9Z',
+  sword: 'M14.5 17.5 3 6V3h3l11.5 11.5 M13 19l6-6 M16 16l4 4 M19 21l2-2',
+  swords: 'M14.5 17.5 3 6V3h3l11.5 11.5 M13 19l6-6 M16 16l4 4 M19 21l2-2 M14.5 6.5 18 3h3v3l-3.5 3.5 M5 14l4 4 M7 17l-3 3 M3 19l2 2',
+  shield: 'M12 22s8-4 8-10V5l-8-3-8 3v7c0 6 8 10 8 10z',
+  zap: 'M13 2 3 14h9l-1 8 10-12h-9l1-8z',
+  eye: 'M2 12s3-7 10-7 10 7 10 7-3 7-10 7-10-7-10-7Z M12 9a3 3 0 1 0 0 6 3 3 0 1 0 0-6',
+  heart: 'M19 14c1.49-1.46 3-3.21 3-5.5A5.5 5.5 0 0 0 16.5 3c-1.76 0-3 .5-4.5 2-1.5-1.5-2.74-2-4.5-2A5.5 5.5 0 0 0 2 8.5c0 2.3 1.5 4.05 3 5.5l7 7Z',
+  star: 'M12 2l3.09 6.26L22 9.27l-5 4.87 1.18 6.88L12 17.77l-6.18 3.25L7 14.14 2 9.27l6.91-1.01L12 2z',
+  clover: 'M12 12c-3-3-6-3-6 0s3 3 6 0z M12 12c3-3 3-6 0-6s-3 3 0 6z M12 12c3 3 6 3 6 0s-3-3-6 0z M12 12c-3 3-3 6 0 6s3-3 0-6z M12 18v4',
+  coin: 'M12 2a10 10 0 1 0 0 20 10 10 0 1 0 0-20 M12 6a6 6 0 1 0 0 12 6 6 0 1 0 0-12 M12 9l3 3-3 3-3-3z',
+  pin: 'M20 10c0 6-8 12-8 12s-8-6-8-12a8 8 0 0 1 16 0Z M12 7a3 3 0 1 0 0 6 3 3 0 1 0 0-6',
+  users: 'M16 21v-2a4 4 0 0 0-4-4H6a4 4 0 0 0-4 4v2 M9 3a4 4 0 1 0 0 8 4 4 0 1 0 0-8 M22 21v-2a4 4 0 0 0-3-3.87 M16 3.13a4 4 0 0 1 0 7.75',
+  scroll: 'M8 21h12a2 2 0 0 0 2-2v-2H10v2a2 2 0 1 1-4 0V5a2 2 0 1 0-4 0v3h4 M19 17V5a2 2 0 0 0-2-2H4 M10 8h6 M10 12h6',
+  bag: 'M6 2 3 6v14a2 2 0 0 0 2 2h14a2 2 0 0 0 2-2V6l-3-4Z M3 6h18 M16 10a4 4 0 0 1-8 0',
+  flask: 'M10 2v7.31 M14 9.3V2 M8.5 2h7 M14 9.3a6.5 6.5 0 1 1-4 0 M5.5 16h13',
+  gem: 'M6 3h12l4 6-10 13L2 9Z M11 3 8 9l4 13 4-13-3-6 M2 9h20',
+  key: 'M2.6 18.4 9.4 11.6 M15.5 2a6.5 6.5 0 1 0 0 13 6.5 6.5 0 1 0 0-13 M5 15l3 3 M3 17l3 3',
+  ring: 'M12 8a7 7 0 1 0 0 14 7 7 0 1 0 0-14 M9 5l3-3 3 3-3 3z',
+  box: 'M21 8a2 2 0 0 0-1-1.73l-7-4a2 2 0 0 0-2 0l-7 4A2 2 0 0 0 3 8v8a2 2 0 0 0 1 1.73l7 4a2 2 0 0 0 2 0l7-4A2 2 0 0 0 21 16Z M3.3 7 12 12l8.7-5 M12 22V12',
+  armor:
+    'M20.38 3.46 16 2a4 4 0 0 1-8 0L3.62 3.46a2 2 0 0 0-1.34 2.23l.58 3.47a1 1 0 0 0 .99.84H6v10c0 1.1.9 2 2 2h8a2 2 0 0 0 2-2V10h2.15a1 1 0 0 0 .99-.84l.58-3.47a2 2 0 0 0-1.34-2.23z',
+  trophy:
+    'M6 9H4.5a2.5 2.5 0 0 1 0-5H6 M18 9h1.5a2.5 2.5 0 0 0 0-5H18 M4 22h16 M10 14.66V17c0 .55-.47.98-.97 1.21C7.85 18.75 7 20.24 7 22 M14 14.66V17c0 .55.47.98.97 1.21C16.15 18.75 17 20.24 17 22 M18 2H6v7a6 6 0 0 0 12 0V2Z',
+  lock: 'M5 11h14v11H5z M7 11V7a5 5 0 0 1 10 0v4',
+  check: 'M20 6 9 17l-5-5',
+  clock: 'M12 2a10 10 0 1 0 0 20 10 10 0 1 0 0-20 M12 6v6l4 2',
+  flame:
+    'M8.5 14.5A2.5 2.5 0 0 0 11 12c0-1.38-.5-2-1-3-1.07-2.14-.22-4.05 2-6 .5 2.5 2 4.9 4 6.5 2 1.6 3 3.5 3 5.5a7 7 0 1 1-14 0c0-1.15.43-2.29 1-3a2.5 2.5 0 0 0 2.5 2.5z',
+  briefcase: 'M16 20V4a2 2 0 0 0-2-2h-4a2 2 0 0 0-2 2v16 M2 6h20v14H2z',
+  calendar: 'M3 4h18v18H3z M16 2v4 M8 2v4 M3 10h18',
+  chat: 'M7.9 20A9 9 0 1 0 4 16.1L2 22Z',
+  book: 'M4 19.5v-15A2.5 2.5 0 0 1 6.5 2H20v20H6.5a2.5 2.5 0 0 1 0-5H20',
+  sparkle: 'M12 3l1.9 5.8L20 10l-6.1 1.2L12 17l-1.9-5.8L4 10l6.1-1.2z M19 15l.8 2.2L22 18l-2.2.8L19 21l-.8-2.2L16 18l2.2-.8z',
+  swap: 'M8 3 4 7l4 4 M4 7h16 M16 21l4-4-4-4 M20 17H4',
+  crown: 'M2 6l4 11h12l4-11-6 5-4-7-4 7z M5 21h14',
+  map: 'M3 6l6-3 6 3 6-3v15l-6 3-6-3-6 3z M9 3v15 M15 6v15',
+  brain:
+    'M12 5a3 3 0 1 0-5.99.13 4 4 0 0 0-2.53 5.77 4 4 0 0 0 .56 6.6A4 4 0 1 0 12 18Z M12 5a3 3 0 1 1 5.99.13 4 4 0 0 1 2.53 5.77 4 4 0 0 1-.56 6.6A4 4 0 1 1 12 18Z M12 5v13',
+  hourglass:
+    'M5 22h14 M5 2h14 M17 22v-4.17a2 2 0 0 0-.59-1.42L12 12l-4.41 4.41A2 2 0 0 0 7 17.83V22 M7 2v4.17a2 2 0 0 0 .59 1.42L12 12l4.41-4.41A2 2 0 0 0 17 6.17V2',
+  flag: 'M4 15s1-1 4-1 5 2 8 2 4-1 4-1V3s-1 1-4 1-5-2-8-2-4 1-4 1z M4 22v-7',
+  gate: 'M4 22V10a8 8 0 0 1 16 0v12 M8 22V11a4 4 0 0 1 8 0v11 M2 22h20',
+  skull:
+    'M12 2a8 8 0 0 0-8 8c0 3 1.5 5 3 6v4h10v-4c1.5-1 3-3 3-6a8 8 0 0 0-8-8z M9 10a1.5 1.5 0 1 0 0 3 1.5 1.5 0 1 0 0-3 M15 10a1.5 1.5 0 1 0 0 3 1.5 1.5 0 1 0 0-3 M10 20v-3 M14 20v-3',
+};
+
+export const STAT_ICONS = {
+  strength: 'sword',
+  defense: 'shield',
+  agility: 'zap',
+  intelligence: 'brain',
+  endurance: 'heart',
+  luck: 'clover',
+};
+
+export const ITEM_ICONS = {
+  weapon: 'sword',
+  armor: 'armor',
+  accessory: 'ring',
+  consumable: 'flask',
+  quest: 'key',
+  material: 'gem',
+  misc: 'box',
+};
+
+const cache = new Map();
+function path2d(name) {
+  if (!cache.has(name)) cache.set(name, new Path2D(PATHS[name] ?? PATHS.sparkle));
+  return cache.get(name);
+}
+
+/** Draws an outline icon centered at (cx, cy). */
+export function icon(ctx, name, cx, cy, size, color, { width = 2, fill = null, glow = 0 } = {}) {
+  const s = size / 24;
+  ctx.save();
+  ctx.translate(cx - size / 2, cy - size / 2);
+  ctx.scale(s, s);
+  ctx.lineCap = 'round';
+  ctx.lineJoin = 'round';
+  ctx.lineWidth = width;
+  if (glow) {
+    ctx.shadowColor = color;
+    ctx.shadowBlur = glow / s;
+  }
+  const p = path2d(name);
+  if (fill) {
+    ctx.fillStyle = fill;
+    ctx.fill(p);
+  }
+  ctx.strokeStyle = color;
+  ctx.stroke(p);
+  ctx.restore();
+}
+
+export const iconNames = Object.keys(PATHS);
