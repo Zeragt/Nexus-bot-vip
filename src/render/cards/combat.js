@@ -264,8 +264,9 @@ export async function renderCombat({ state, avatars = [null, null], deadline = n
   }
 
   if (state.finished) {
+    const stakes = (state.stakesText ?? []).slice(0, 3);
     ctx.save();
-    roundRect(ctx, cx - 340, H / 2 - 70, 680, 120, 22);
+    roundRect(ctx, cx - 340, H / 2 - 70, 680, 120 + stakes.length * 28, 22);
     const g = ctx.createLinearGradient(cx - 340, 0, cx + 340, 0);
     g.addColorStop(0, 'rgba(10,14,40,0.94)');
     g.addColorStop(0.5, 'rgba(48,34,8,0.94)');
@@ -289,6 +290,10 @@ export async function renderCombat({ state, avatars = [null, null], deadline = n
     });
     const sub = [REASONS[state.reason], rewards].filter(Boolean).join('  •  ');
     text(ctx, sub, cx, H / 2 + 16, { size: 18, weight: 600, align: 'center', color: theme.text, maxWidth: 620 });
+    // What the loser paid (v3 stakes): XP lost and the dropped item.
+    stakes.forEach((line, k) => {
+      text(ctx, line, cx, H / 2 + 50 + k * 28, { size: 17, weight: 700, align: 'center', color: '#fb7185', maxWidth: 640 });
+    });
     const last = state.log.at(-1);
     if (last) text(ctx, last.text, cx, H - 40, { size: 16, weight: 600, align: 'center', color: theme.textDim, maxWidth: 900 });
   }

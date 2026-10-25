@@ -4,6 +4,7 @@ import { requireByUser, loadCharacter } from './characters.js';
 import { addItem, removeItem, assertCapacity, resolveItem, ownedQuantity, mapItem } from './inventory.js';
 import { credit, debit } from './economy.js';
 import { audit } from './audit.js';
+import { track } from './progress.js';
 
 function mapNpc(r) {
   return {
@@ -140,6 +141,7 @@ export async function buy(userId, itemKey, qty = 1, npcKey = null) {
     const balance = await debit(db, ch.id, total, 'shop_buy', `شراء: ${item.name} x${qty} من ${offer.npc_name}`);
     if (offer.stock !== null) await db.query('UPDATE npc_shop_items SET stock = stock - $3 WHERE npc_id = $1 AND item_id = $2', [offer.npc_id, item.id, qty]);
     await addItem(db, ch.id, item.id, qty);
+    await track(db, ch.id, 'buy', { target: item.key, amount: qty });
     return { item, qty, total, balance, npc: offer.npc_name };
   });
 }

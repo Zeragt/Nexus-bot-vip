@@ -103,6 +103,12 @@ export const combatComponent = {
       if (res.declined) return i.editReply({ ...ok('رُفض التحدي.'), content: null, files: [], attachments: [], components: [] });
       return postCombat(i, { session: res.session, finished: false }, { update: true });
     }
+    if (action === 'ff') {
+      const s = await getSession(sessionId);
+      if (!s?.state?.fighters?.some((f) => f.userId === uid)) throw new UserError('أنت لست طرفاً في هذا القتال');
+      await i.deferUpdate();
+      return postCombat(i, await forfeit(uid), { update: true });
+    }
     let move;
     if (ACTIONS[action]) move = { type: ACTIONS[action] };
     else if (action === 'skill') move = { type: 'skill', key: i.values[0] };

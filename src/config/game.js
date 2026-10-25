@@ -11,7 +11,7 @@ export const STAT_LABELS = {
   luck: 'الحظ',
 };
 
-export const RARITIES = ['common', 'uncommon', 'rare', 'epic', 'legendary', 'mythic'];
+export const RARITIES = ['common', 'uncommon', 'rare', 'epic', 'legendary', 'mythic', 'secret'];
 export const RARITY_LABELS = {
   common: 'عادي',
   uncommon: 'غير شائع',
@@ -19,6 +19,7 @@ export const RARITY_LABELS = {
   epic: 'ملحمي',
   legendary: 'أسطوري',
   mythic: 'خرافي',
+  secret: 'سري',
 };
 
 export const ITEM_TYPES = ['weapon', 'armor', 'accessory', 'consumable', 'quest', 'material', 'misc'];
@@ -98,6 +99,54 @@ export const combat = {
   pvpSameOpponentCooldownHours: 6,
   huntEnergyCost: 10,
   huntCooldownSeconds: 120,
+};
+
+/**
+ * PvP stakes (v3). The loser of a duel loses a share of the XP inside their current level and
+ * may drop ONE random bag item to the winner. Only one stack is picked, then this rarity chance
+ * is rolled, so rare things are both less likely to be picked out and much less likely to fall.
+ * Percentages can be overridden in-game: settings pvp_xp_loss_pct / pve_xp_loss_pct.
+ */
+export const stakes = {
+  pvpXpLossPct: 30,
+  pveXpLossPct: 10,
+  dropChance: {
+    common: 0.5,
+    uncommon: 0.35,
+    rare: 0.2,
+    epic: 0.08,
+    legendary: 0.025,
+    mythic: 0.005,
+    secret: 0.0001,
+  },
+  /** Items that never drop (quest items can't be traded). */
+  neverDropTypes: ['quest'],
+  guardianCharm: 'guardian_charm',
+};
+
+/** Daily / weekly quests (v3). */
+export const dailies = {
+  slots: 6,
+  weeklySlots: 3,
+  /** NX price of the n-th paid reroll of the day (n starts at 1). */
+  rerollCost: (n) => 150 * n,
+  maxRerolls: 6,
+  /** Streak rewards paid when the day's board is fully claimed. */
+  streakRewards: {
+    3: { nx: 500 },
+    7: { nx: 1500, items: [['guardian_charm', 1]] },
+    14: { nx: 4000, items: [['weekly_chest', 1]] },
+    30: { nx: 12000, items: [['relic_coffer', 1]] },
+  },
+};
+
+/** Exploration and gathering (v3). */
+export const exploration = {
+  exploreEnergy: 8,
+  exploreCooldownSeconds: 25,
+  gatherEnergy: 5,
+  gatherCooldownSeconds: 40,
+  zoneMoveSeconds: 10,
 };
 
 export const cooldowns = {

@@ -169,7 +169,8 @@ export function availableActions(state) {
   const items = Object.entries(f.items)
     .filter(([, it]) => it.qty > 0)
     .map(([key, it]) => ({ key, name: it.name, qty: it.qty }));
-  return { attack: true, defend: true, flee: true, silenced, skills, items };
+  // Duels have stakes: no running away (surrender counts as a loss).
+  return { attack: true, defend: true, flee: !state.pvp, silenced, skills, items };
 }
 
 /**
@@ -215,6 +216,7 @@ export function performAction(prev, action, rng = defaultRng) {
       useItem(state, actor, action.key);
       break;
     case 'flee': {
+      if (state.pvp) throw new CombatError('لا انسحاب في المبارزة. يمكنك الاستسلام، لكنه يُحسب خسارة');
       const chance = clamp(C.fleeBase + (actor.stats.agility - target.stats.agility) * C.fleePerAgilityDiff, 0.15, 0.85);
       if (rng.chance(chance)) {
         pushLog(state, `${actor.name} ينسحب من القتال`, 'info');

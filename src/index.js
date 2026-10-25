@@ -8,7 +8,7 @@ import { createInteractionHandler } from './core/interactions.js';
 import { Scheduler } from './core/scheduler.js';
 import { initDb, waitForDb, closeDb, getPool } from './db/pool.js';
 import { migrate } from './db/migrate.js';
-import { syncContent } from './services/content.js';
+import { syncContent, syncWorldContent } from './services/content.js';
 import { buildRegistry } from './commands/index.js';
 import { deployCommands } from './discord/deploy.js';
 import { registerTasks } from './tasks.js';
@@ -126,6 +126,8 @@ export async function main() {
   // Class and path skills are generated from code; keep the skills table in step with it.
   const synced = await syncContent(pool);
   if (!synced.skipped) logger.info({ skills: synced.skills, fingerprint: synced.fingerprint }, 'Class content synced');
+  // v3 items (materials, region gear, secret relics, loot boxes) and shop stock.
+  await syncWorldContent(pool);
   app.cooldowns = new CooldownManager({ store: pgCooldownStore(pool) });
   app.logSink = makeLogSink(env);
 

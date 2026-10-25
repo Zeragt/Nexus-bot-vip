@@ -4,6 +4,8 @@ import { logger, scrub } from '../core/logger.js';
 // BIGINT columns (xp, nx...) come back as strings by default; our values stay far below 2^53.
 pg.types.setTypeParser(20, (v) => Number(v));
 pg.types.setTypeParser(1700, (v) => Number(v));
+// DATE columns (day keys) stay 'YYYY-MM-DD' strings, so they never shift with the host's timezone.
+pg.types.setTypeParser(1082, (v) => v);
 
 /**
  * Builds pg options from a URL. Neon needs TLS; sslmode/channel_binding query params are

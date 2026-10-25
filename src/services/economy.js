@@ -4,6 +4,7 @@ import { economy } from '../config/game.js';
 import { requireByUser, loadCharacter } from './characters.js';
 import { checkAchievements } from './achievements.js';
 import { audit } from './audit.js';
+import { track } from './progress.js';
 import { getSetting } from './settings.js';
 
 /** Adds NX inside a transaction and records it. */
@@ -83,6 +84,7 @@ export async function daily(userId, now = new Date()) {
     const amount = Math.floor((economy.daily.base + (streak - 1) * economy.daily.streakBonus) * mult);
     await db.query('UPDATE users SET daily_streak = $2, last_daily_at = $3 WHERE discord_id = $1', [userId, streak, now]);
     await credit(db, ch.id, amount, 'daily', `المكافأة اليومية (سلسلة ${streak})`);
+    await track(db, ch.id, 'daily_reward');
     const unlocked = await checkAchievements(db, ch.id);
     return { amount, streak, character: await loadCharacter(db, ch.id), unlocked };
   });

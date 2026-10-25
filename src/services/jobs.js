@@ -7,7 +7,7 @@ import { defaultRng } from '../engine/rng.js';
 import { requireByUser, spendEnergy, grantXp } from './characters.js';
 import { credit } from './economy.js';
 import { adjustFactionRep } from './factions.js';
-import { recordProgress } from './quests.js';
+import { track } from './progress.js';
 import { checkAchievements } from './achievements.js';
 import { getSetting } from './settings.js';
 
@@ -80,7 +80,7 @@ export async function work(userId, rng = defaultRng) {
     await db.query('UPDATE characters SET shifts_worked = shifts_worked + 1 WHERE id = $1', [ch.id]);
     const xp = await grantXp(db, ch.id, job.xp_reward);
     if (job.faction_id) await adjustFactionRep(db, ch.id, job.faction_id, 2);
-    await recordProgress(db, ch.id, 'work', job.key);
+    await track(db, ch.id, 'work', { target: job.key });
     const unlocked = await checkAchievements(db, ch.id);
     return { job, pay: total, tip, xp, jobLevel, jobLevelUp: jobLevel > cj.job_level, energyLeft: ch.energy, unlocked };
   });

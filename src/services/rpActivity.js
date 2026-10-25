@@ -4,6 +4,7 @@ import { cooldowns } from '../config/game.js';
 import { grantXp } from './characters.js';
 import { getSetting } from './settings.js';
 import { locationByChannelName } from './world.js';
+import { track } from './progress.js';
 
 const RP = cooldowns.rpXp;
 
@@ -37,19 +38,15 @@ export async function handleRpMessage(message, now = new Date()) {
   const xp = rpXpFor(length);
   if (!xp) return null;
   const hash = content ? crypto.createHash('sha1').update(normalize(content)).digest('hex').slice(0, 16) : null;
-  const day = now.toISOString().slice(0, 10);
+  // Same calendar as rpStats (the database's CURRENT_DATE), so the daily cap and the stats agree.
+  const day = (await getPool().query('SELECT CURRENT_DATE::text AS d')).rows[0].d;
 
   return tx(async (db) => {
     const ch = (await db.query('SELECT id FROM characters WHERE user_id = $1 ORDER BY slot LIMIT 1', [message.author.id])).rows[0];
     if (!ch) return null;
-    const act = (
-      await db.query(
-        `INSERT INTO rp_activity (character_id, day) VALUES ($1, $2) ON CONFLICT (character_id, day) DO UPDATE SET messages = rp_activity.messages
-         RETURNING *`,
-        [ch.id, day],
-      )
-    ).rows[0];
-    await db.query('SELECT 1 FROM rp_activity WHERE character_id = $1 AND day = $2 FOR UPDATE', [ch.id, day]);
+    await db.query('INSERT INTO rp_activity (character_id, day) VALUES ($1, $2) ON CONFLICT (character_id, day) DO NOTHING', [ch.id, day]);
+    // Read under the row lock, so two messages at once can't both pass the cooldown/cap check.
+    const act = (await db.query('SELECT * FROM rp_activity WHERE character_id = $1 AND day = $2 FOR UPDATE', [ch.id, day])).rows[0];
     const since = act.last_rewarded_at ? (now - new Date(act.last_rewarded_at)) / 1000 : Infinity;
     const blocked = since < RP.cooldownSeconds || act.xp_awarded >= RP.dailyCap || (hash && hash === act.last_hash);
     if (blocked) {
@@ -62,6 +59,7 @@ export async function handleRpMessage(message, now = new Date()) {
       [ch.id, day, amount, now, hash],
     );
     const res = await grantXp(db, ch.id, amount);
+    await track(db, ch.id, 'rp', { target: message.channelId });
     return { characterId: ch.id, xp: res.gained, levelsGained: res.levelsGained, level: res.level };
   });
 }

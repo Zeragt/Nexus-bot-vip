@@ -1,5 +1,9 @@
 import { resetClass } from '../services/classes.js';
 import { setStoryProgress } from '../services/story.js';
+import { CHAPTERS } from '../content/story/index.js';
+
+const STORY_CHAPTERS = CHAPTERS.length;
+import { resetBoard } from '../services/dailies.js';
 import { forgetImage } from '../views/avatars.js';
 import {
   SlashCommandBuilder,
@@ -50,6 +54,14 @@ import { eventMessage } from '../views/social.js';
 import { randomEventMessage, refreshEventMessage } from './event.js';
 
 // Helpers -----------------------------------------------------------------------
+
+/** Whole-number settings with their allowed range. */
+const NUMERIC_LIMITS = {
+  pvp_xp_loss_pct: [0, 90, 'نسبة الخسارة'],
+  pve_xp_loss_pct: [0, 90, 'نسبة الخسارة'],
+  daily_reset_offset_hours: [-12, 14, 'فرق التوقيت'],
+  daily_free_rerolls: [0, 6, 'عدد التبديلات'],
+};
 const reasonOpt = (s) => s.addStringOption((o) => o.setName('reason').setDescription('السبب (يُسجَّل)').setMaxLength(200));
 const userOpt = (s, req = true) => s.addUserOption((o) => o.setName('user').setDescription('اللاعب').setRequired(req));
 const choices = (labels) => Object.entries(labels).map(([value, name]) => ({ name, value }));
@@ -122,10 +134,16 @@ export const adminCommand = {
         .addSubcommand((s) =>
           reasonOpt(
             userOpt(s.setName('story').setDescription('اضبط تقدم اللاعب في القصة')).addIntegerOption((o) =>
-              o.setName('chapters').setDescription('عدد الفصول المكتملة (0 يعيد القصة من البداية)').setRequired(true).setMinValue(0).setMaxValue(25),
+              o
+                .setName('chapters')
+                .setDescription('عدد الفصول المكتملة (0 يعيد القصة من البداية)')
+                .setRequired(true)
+                .setMinValue(0)
+                .setMaxValue(STORY_CHAPTERS),
             ),
           ),
         )
+        .addSubcommand((s) => reasonOpt(userOpt(s.setName('dailyreset').setDescription('أعد توليد مهام اللاعب اليومية'))))
         .addSubcommand((s) => reasonOpt(userOpt(s.setName('delete').setDescription('احذف شخصية (مع تأكيد)')))),
     )
     .addSubcommandGroup((g) =>
@@ -245,6 +263,13 @@ export const adminCommand = {
                   { name: 'قنوات الأحداث العشوائية', value: 'random_event_channel_ids' },
                   { name: 'قناة لوحة المهام', value: 'quest_board_channel_id' },
                   { name: 'قناة الإعلانات', value: 'announce_channel_id' },
+                  { name: 'خسارة XP في المبارزة %', value: 'pvp_xp_loss_pct' },
+                  { name: 'خسارة XP أمام الوحوش %', value: 'pve_xp_loss_pct' },
+                  { name: 'سقوط العناصر في المبارزة', value: 'pvp_item_drop_enabled' },
+                  { name: 'ساعة تجدد المهام (فرق التوقيت)', value: 'daily_reset_offset_hours' },
+                  { name: 'التبديلات المجانية يومياً', value: 'daily_free_rerolls' },
+                  { name: 'هدف السيرفر اليومي', value: 'world_goal_enabled' },
+                  { name: 'الاستكشاف', value: 'explore_enabled' },
                 ),
             )
             .addStringOption((o) => o.setName('value').setDescription('القيمة (رقم، true/false، أو معرفات مفصولة بفواصل)').setRequired(true)),
@@ -339,6 +364,12 @@ export const adminCommand = {
         const n = i.options.getInteger('chapters', true);
         await setStoryProgress(ch.id, n, { actorId, reason });
         return send(i, ok(`تقدم **${ch.name}** في القصة أصبح ${n} فصلاً مكتملاً.`));
+      }
+      case 'character.dailyreset': {
+        requireCap(i, 'manageCharacters');
+        const ch = await targetCharacter(i);
+        await resetBoard(ch.id, { actorId });
+        return send(i, ok(`أُعيد توليد مهام **${ch.name}** اليومية. ستظهر لوحة جديدة في /daily.`));
       }
       case 'character.delete': {
         requireCap(i, 'deleteCharacters');
@@ -437,7 +468,11 @@ export const adminCommand = {
                   throw new UserError('معرف قناة غير صالح');
                 })();
         else if (k.endsWith('_enabled')) value = ['true', 'on', '1', 'نعم'].includes(raw.toLowerCase());
-        else {
+        else if (NUMERIC_LIMITS[k]) {
+          const [min, max, label] = NUMERIC_LIMITS[k];
+          value = Number(raw);
+          if (!Number.isInteger(value) || value < min || value > max) throw new UserError(`${label} يجب أن يكون رقماً صحيحاً بين ${min} و ${max}`);
+        } else {
           value = Number(raw);
           if (!Number.isFinite(value) || value < 0 || value > 10) throw new UserError('المضاعف يجب أن يكون رقماً بين 0 و 10');
         }

@@ -6,11 +6,15 @@ import { combat as C } from '../config/game.js';
 import { duration } from '../utils/format.js';
 import { createFighter, createBattle, performAction, timeoutTurn, chooseAiAction, passivesFromSkills, CombatError, activeFighter } from '../engine/combat.js';
 import { enemiesFor, spawnEnemy, rollLoot } from '../engine/enemies.js';
+import { depthBoost } from '../engine/explore.js';
+import { ELITES, ELITE_MULT, ELITE_CHANCE, currentZone } from '../content/regions.js';
 import { defaultRng } from '../engine/rng.js';
 import { requireByUser, loadCharacter, saveVitals, spendEnergy } from './characters.js';
 import { activeStatusEffects, removeItem } from './inventory.js';
 import { grantRewards, describeRewards } from './rewards.js';
-import { recordProgress } from './quests.js';
+import { track } from './progress.js';
+import { applyPvpStakes, applyXpLoss, lossPct } from './stakes.js';
+import { fieldConditions } from './mastery.js';
 import { audit } from './audit.js';
 import { pathBonus } from '../content/classGen.js';
 
@@ -166,6 +170,8 @@ export async function respond(sessionId, userId, accept, rng = defaultRng) {
     if (!chal) throw new UserError('صاحب التحدي لم يعد موجوداً');
     await lockFighters(db, sessionId, [chal.id, opp.id]);
     const state = createBattle(await buildFighter(db, chal), await buildFighter(db, opp), rng);
+    // Duels have stakes (XP loss and a possible item drop), so there is no fleeing.
+    state.pvp = true;
     const saved = await saveState(db, sessionId, state, 'active');
     await audit({ actorId: userId, action: 'combat_started', targetType: 'combat', targetId: sessionId, after: { a: chal.code, b: opp.code } }, db);
     return { declined: false, session: saved };
@@ -211,10 +217,25 @@ export async function act(sessionId, userId, action, rng = defaultRng) {
   });
 }
 
-/** Ends a fight: persists HP/energy, consumes used items, pays rewards, releases locks. */
+/** Template of a defeated monster (regular, elite, or unknown). */
+function templateOf(locKey, enemyKey) {
+  const elite = ELITES[locKey];
+  if (elite?.key === enemyKey) return elite;
+  return enemiesFor(locKey).find((e) => e.key === enemyKey) ?? null;
+}
+
+/** Fights that count as a real loss (a successful flight or a draw doesn't). */
+const decisive = (state) => state.winner != null && state.reason !== 'flee';
+
+/**
+ * Ends a fight: persists HP/energy, consumes used items, pays rewards, applies the stakes
+ * of losing (v3), advances quests and releases locks.
+ */
 async function finalize(db, row, state, rng = defaultRng) {
   const winnerFighter = state.winner != null ? state.fighters[state.winner] : null;
-  const summary = { rewards: null, loot: [], text: null };
+  const loser = state.winner != null ? state.fighters[1 - state.winner] : null;
+  const summary = { rewards: null, loot: [], text: null, stakes: null, penalty: null };
+  const pvp = row.kind === 'pvp';
   for (const f of state.fighters) {
     if (typeof f.id !== 'number') continue;
     const ch = await loadCharacter(db, f.id, { lock: true });
@@ -224,45 +245,72 @@ async function finalize(db, row, state, rng = defaultRng) {
       const item = (await db.query('SELECT id FROM items WHERE key = $1', [key])).rows[0];
       if (item && n > 0) await removeItem(db, f.id, item.id, n).catch(() => {});
     }
-    if (state.winner == null || state.reason === 'flee') continue;
+    if (!decisive(state)) continue;
     const won = winnerFighter?.id === f.id;
-    await db.query(`UPDATE characters SET ${won ? 'combat_wins = combat_wins + 1' : 'combat_losses = combat_losses + 1'} WHERE id = $1`, [f.id]);
+    await db.query(
+      `UPDATE characters SET ${won ? 'combat_wins = combat_wins + 1' : 'combat_losses = combat_losses + 1'}
+         ${pvp ? (won ? ', pvp_wins = pvp_wins + 1' : ', pvp_losses = pvp_losses + 1') : ''} WHERE id = $1`,
+      [f.id],
+    );
+    if (pvp) {
+      await track(db, f.id, 'pvp_fight');
+      if (won) await track(db, f.id, 'pvp_win');
+    }
   }
 
-  const loser = state.winner != null ? state.fighters[1 - state.winner] : null;
+  const player = state.fighters.find((f) => typeof f.id === 'number');
+  const playerWon = Boolean(winnerFighter && typeof winnerFighter.id === 'number');
   if (state.story) {
-    // Story bosses pay chapter rewards instead of hunt loot; losses only count an attempt.
+    // Story bosses pay chapter rewards instead of hunt loot.
     const { onStoryFight } = await import('./story.js');
-    const player = state.fighters.find((f) => typeof f.id === 'number');
-    summary.story = await onStoryFight(db, state, player, winnerFighter === player && state.reason !== 'flee');
+    const won = winnerFighter === player && state.reason !== 'flee';
+    summary.story = await onStoryFight(db, state, player, won);
     summary.rewards = summary.story?.rewards ?? null;
-  } else if (winnerFighter && typeof winnerFighter.id === 'number' && state.reason !== 'flee') {
+    if (won) await track(db, player.id, 'story_boss');
+  } else if (playerWon && state.reason !== 'flee') {
     if (row.kind === 'pve') {
       const enemyKey = loser.id.replace('enemy:', '');
       const locKey = state.locationKey ?? row.state?.locationKey;
-      const template = enemiesFor(locKey).find((e) => e.key === enemyKey);
-      const lootKeys = template ? rollLoot(template, rng) : [];
+      const template = templateOf(locKey, enemyKey);
+      const lootKeys = template ? rollLoot(template, rng, state.lootMult ?? 1) : [];
       const items = [];
       for (const key of lootKeys) {
-        const it = (await db.query('SELECT id, name_ar FROM items WHERE key = $1', [key])).rows[0];
-        if (it) items.push({ itemId: it.id, name: it.name_ar, quantity: 1 });
+        const it = (await db.query('SELECT id, name_ar, rarity FROM items WHERE key = $1', [key])).rows[0];
+        if (it) items.push({ itemId: it.id, name: it.name_ar, rarity: it.rarity, quantity: 1 });
       }
+      const mult = (state.elite ? 3 : 1) * (state.xpMult ?? 1);
       summary.rewards = await grantRewards(db, winnerFighter.id, {
-        xp: 15 + loser.level * 6,
-        nx: 8 + loser.level * 4,
+        xp: Math.round((15 + loser.level * 6) * mult),
+        nx: Math.round((8 + loser.level * 4) * (state.elite ? 3 : 1)),
         items,
         kind: 'hunt',
         note: `غنيمة: ${loser.name}`,
       });
-      await recordProgress(db, winnerFighter.id, 'defeat', locKey);
+      await track(db, winnerFighter.id, 'hunt', { target: locKey });
+      if (state.elite) {
+        await db.query('UPDATE characters SET elites_slain = elites_slain + 1 WHERE id = $1', [winnerFighter.id]);
+        await track(db, winnerFighter.id, 'hunt_elite', { target: locKey });
+      }
     } else {
       summary.rewards = await pvpRewards(db, winnerFighter, loser);
     }
   }
-  if (summary.rewards) summary.text = describeRewards(summary.rewards);
 
+  // Stakes of losing (v3).
+  if (decisive(state) && pvp && typeof loser?.id === 'number' && typeof winnerFighter?.id === 'number') {
+    summary.stakes = await applyPvpStakes(db, { winnerId: winnerFighter.id, loserId: loser.id, sessionId: row.id }, rng);
+    summary.stakes.loser = loser.name;
+    summary.stakes.winner = winnerFighter.name;
+  } else if (decisive(state) && !pvp && player && !playerWon) {
+    const pct = await lossPct('pve');
+    const lost = pct > 0 ? await applyXpLoss(db, player.id, pct) : 0;
+    summary.penalty = { xpLost: lost, pct, name: player.name };
+  }
+
+  if (summary.rewards) summary.text = describeRewards(summary.rewards);
   const winnerId = winnerFighter && typeof winnerFighter.id === 'number' ? winnerFighter.id : null;
   state.rewardText = summary.text;
+  state.stakesText = stakesLines(summary);
   if (summary.story) state.storyResult = { won: summary.story.won, chapter: summary.story.chapter.key, replay: Boolean(summary.story.replay) };
   await db.query(`UPDATE combat_sessions SET state = $2, status = 'finished', winner_id = $3, finished_at = now(), turn_deadline = NULL WHERE id = $1`, [
     row.id,
@@ -279,11 +327,31 @@ async function finalize(db, row, state, rng = defaultRng) {
       ]);
   await db.query('DELETE FROM combat_locks WHERE session_id = $1', [row.id]);
   await audit(
-    { actorId: null, action: 'combat_finished', targetType: 'combat', targetId: row.id, after: { winner: winnerFighter?.name ?? null, reason: state.reason } },
+    {
+      actorId: null,
+      action: 'combat_finished',
+      targetType: 'combat',
+      targetId: row.id,
+      after: { winner: winnerFighter?.name ?? null, reason: state.reason, stakes: summary.stakes ?? summary.penalty ?? null },
+    },
     db,
   );
   const fresh = (await db.query('SELECT * FROM combat_sessions WHERE id = $1', [row.id])).rows[0];
   return { session: mapSession(fresh), finished: true, summary };
+}
+
+/** Short Arabic lines describing what the loser paid, shown on the final combat card. */
+export function stakesLines(summary) {
+  const out = [];
+  const st = summary.stakes;
+  if (st) {
+    if (st.xpLost > 0) out.push(`${st.loser} خسر ${st.xpLost} XP`);
+    if (st.item) out.push(`سقط من ${st.loser}: ${st.item.name} ← ذهب إلى ${st.winner}`);
+    else if (st.protected) out.push(`تميمة الحارس تحطمت وحمت حقيبة ${st.loser}`);
+    else if (st.rolled) out.push(`${st.rolled.name} كاد يسقط... لكنه بقي في الحقيبة`);
+  }
+  if (summary.penalty?.xpLost > 0) out.push(`${summary.penalty.name} خسر ${summary.penalty.xpLost} XP (${summary.penalty.pct}%)`);
+  return out;
 }
 
 /**
@@ -326,30 +394,61 @@ export async function forfeit(userId) {
   return act(sid, userId, { type: 'forfeit' });
 }
 
-/** Starts a PvE fight against a monster from the current location. */
+/**
+ * Starts a PvE fight in the character's current zone, inside the caller's transaction.
+ * Deeper zones spawn stronger monsters with better loot; `elite` brings the location's elite.
+ * Used by /hunt and by /explore encounters.
+ */
+export async function startZoneFight(db, ch, { elite = false } = {}, rng = defaultRng) {
+  const locKey = ch.location?.key;
+  const pool = enemiesFor(locKey);
+  if (!pool.length) throw new UserError('لا توجد مخلوقات معادية هنا');
+  if (await inCombat(db, ch.id)) throw new UserError('أنت في قتال بالفعل');
+  const zone = currentZone(locKey, ch.zoneKey);
+  const field = await fieldConditions(db, ch.id, locKey);
+  const eliteTemplate = elite && ELITES[locKey] ? { ...ELITES[locKey], hpMult: ELITE_MULT.hpMult, statMult: ELITE_MULT.statMult } : null;
+  const template = eliteTemplate ?? rng.pick(pool);
+  const boost = depthBoost(zone);
+  const enemy = spawnEnemy(
+    template,
+    {
+      playerLevel: ch.level,
+      danger: (ch.location.danger ?? 0) + (field.weather.danger ?? 0),
+      levelBonus: boost.level + (eliteTemplate ? ELITE_MULT.levelOffset : 0),
+      elite: Boolean(eliteTemplate),
+    },
+    rng,
+  );
+  const id = crypto.randomUUID();
+  await db.query(`INSERT INTO combat_sessions (id, kind, status, challenger_id) VALUES ($1, 'pve', 'active', $2)`, [id, ch.id]);
+  await lockFighters(db, id, [ch.id]);
+  let state = createBattle(await buildFighter(db, ch), enemy, rng);
+  state.locationKey = locKey;
+  state.zoneKey = zone?.key ?? null;
+  state.elite = Boolean(eliteTemplate);
+  state.lootMult = boost.loot * (field.weather.loot ?? 1) * field.lootBonus;
+  state.xpMult = field.weather.xp ?? 1;
+  state = runAi(state, rng);
+  if (state.finished) {
+    const row = (await db.query('SELECT * FROM combat_sessions WHERE id = $1', [id])).rows[0];
+    return finalize(db, row, state, rng);
+  }
+  return { session: await saveState(db, id, state, 'active'), finished: false };
+}
+
+/** Starts a PvE fight against a monster from the current zone. */
 export async function hunt(userId, rng = defaultRng) {
   const left = await app.cooldowns.remaining(`u:${userId}`, 'hunt');
   if (left > 0) throw new UserError(`استعد قليلاً قبل الصيد التالي (${duration(left)})`);
   const result = await tx(async (db) => {
     const ch = await requireByUser(userId, db, { lock: true });
-    const pool = enemiesFor(ch.location?.key);
-    if (!pool.length) throw new UserError('لا توجد مخلوقات معادية هنا. اذهب إلى البراري: الغابة، الجبال، البحيرة، الصحراء، الأطلال...');
+    if (!enemiesFor(ch.location?.key).length) throw new UserError('لا توجد مخلوقات معادية هنا. اذهب إلى البراري: الغابة، الجبال، البحيرة، الصحراء، الأطلال...');
     if (await inCombat(db, ch.id)) throw new UserError('أنت في قتال بالفعل');
     if (ch.hp < ch.maxHp * 0.2) throw new UserError('صحتك منخفضة جداً. استرح أو استخدم جرعة شفاء');
     await spendEnergy(db, ch, C.huntEnergyCost);
-    const template = rng.pick(pool);
-    const enemy = spawnEnemy(template, { playerLevel: ch.level, danger: ch.location.danger }, rng);
-    const id = crypto.randomUUID();
-    await db.query(`INSERT INTO combat_sessions (id, kind, status, challenger_id) VALUES ($1, 'pve', 'active', $2)`, [id, ch.id]);
-    await lockFighters(db, id, [ch.id]);
-    let state = createBattle(await buildFighter(db, ch), enemy, rng);
-    state.locationKey = ch.location.key;
-    state = runAi(state, rng);
-    if (state.finished) {
-      const row = (await db.query('SELECT * FROM combat_sessions WHERE id = $1', [id])).rows[0];
-      return finalize(db, row, state, rng);
-    }
-    return { session: await saveState(db, id, state, 'active'), finished: false };
+    const zone = currentZone(ch.location.key, ch.zoneKey);
+    const elite = rng.chance((ELITE_CHANCE[zone?.depth ?? 1] ?? 0) * 0.6);
+    return startZoneFight(db, ch, { elite }, rng);
   });
   await app.cooldowns.set(`u:${userId}`, 'hunt', C.huntCooldownSeconds * 1000, { persist: false });
   return result;

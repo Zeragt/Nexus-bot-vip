@@ -159,11 +159,16 @@ describe('quest rules', () => {
         { id: 1, kind: 'collect', targetKey: 'herb', requiredCount: 3 },
         { id: 2, kind: 'visit', targetKey: 'caves', requiredCount: 1 },
       ],
-      { inventory: { herb: 5 }, visited: ['caves'], progress: {}, currentLocationKey: 'city' },
+      { inventory: { herb: 5 }, progress: { 2: 1 }, currentLocationKey: 'city' },
     );
     expect(ev.every((o) => o.done)).toBe(true);
     expect(ev[0].current).toBe(3);
     expect(autoObjectivesDone(ev)).toBe(true);
+  });
+  it('only counts visits made after accepting (or standing there)', () => {
+    const objs = [{ id: 2, kind: 'visit', targetKey: 'caves', requiredCount: 1 }];
+    expect(evaluateObjectives(objs, { inventory: {}, progress: {}, currentLocationKey: 'city' })[0].done).toBe(false);
+    expect(evaluateObjectives(objs, { inventory: {}, progress: {}, currentLocationKey: 'caves' })[0].done).toBe(true);
   });
 });
 

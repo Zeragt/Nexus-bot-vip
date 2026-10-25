@@ -7,6 +7,9 @@
 //   node scripts/build-assets.js            build what is missing
 //   node scripts/build-assets.js --force    rebuild everything
 //   node scripts/build-assets.js --only=emblems,scenes
+//
+// v3 adds: an icon for every one of the 10,450 skills, a panorama per zone, art for every item,
+// a poster per province, and portraits for the elites and wardens.
 import fs from 'node:fs';
 import path from 'node:path';
 import { fileURLToPath } from 'node:url';
@@ -20,6 +23,10 @@ import { CLASSES, CATEGORIES, ELEMENTS, ROLE_LABELS } from '../src/content/class
 import { PATHS, subclassesOf } from '../src/content/classGen.js';
 import { CHAPTERS } from '../src/content/story/index.js';
 import { ENEMIES } from '../src/engine/enemies.js';
+import { allGeneratedSkills } from '../src/content/classGen.js';
+import { drawSkillIcon, drawItemArt } from '../src/render/skillArt.js';
+import { ZONES, PROVINCES, ELITES, DEPTH_LABELS, WEATHER } from '../src/content/regions.js';
+import { V3_ITEMS } from '../src/content/items.js';
 
 const ROOT = path.resolve(path.dirname(fileURLToPath(import.meta.url)), '..', 'assets');
 const args = process.argv.slice(2);
@@ -205,6 +212,7 @@ async function bestiary() {
   const list = [];
   for (const [loc, mobs] of Object.entries(ENEMIES)) for (const m of mobs) if (!seen.has(m.key) && seen.add(m.key)) list.push({ ...m, loc });
   for (const ch of CHAPTERS) list.push({ ...ch.boss, loc: ch.location, boss: true });
+  for (const [loc, e] of Object.entries(ELITES)) if (!seen.has(e.key) && seen.add(e.key)) list.push({ ...e, loc, boss: true });
   for (const m of list) {
     const S = 1024;
     const c = createCanvas(S, S);
@@ -233,7 +241,140 @@ async function bestiary() {
   }
 }
 
-const steps = { scenes, wallpapers, emblems, classes: classPosters, story: chapterPosters, bestiary };
+// 7. An icon for every skill (384×384), grouped by class (and by path for signature skills).
+async function skillIcons() {
+  for (const sk of allGeneratedSkills()) {
+    const c = createCanvas(384, 384);
+    drawSkillIcon(c.getContext('2d'), sk, { size: 384 });
+    const dir = sk.subclassKey ? `art/skills/${sk.classKey}/${sk.subclassKey.split('.')[1] ?? 'path'}` : `art/skills/${sk.classKey ?? 'common'}`;
+    await save(`${dir}/${sk.key}.webp`, c, 95);
+  }
+}
+
+const ZONE_TINT = { 1: 'rgba(52,211,153,0.10)', 2: 'rgba(34,211,238,0.14)', 3: 'rgba(167,139,250,0.18)', 4: 'rgba(45,252,210,0.22)' };
+
+// 8. A panorama per zone (2560×1080): its location's scene, tinted by depth, with its name.
+async function zonePanoramas() {
+  for (const [loc, zones] of Object.entries(ZONES)) {
+    for (const z of zones) {
+      const W = 2560;
+      const H = 1080;
+      const c = createCanvas(W, H);
+      const ctx = c.getContext('2d');
+      drawScene(ctx, W, H, sceneFor(loc), { seed: hashSeed(z.key) });
+      ctx.fillStyle = ZONE_TINT[z.depth] ?? ZONE_TINT[1];
+      ctx.fillRect(0, 0, W, H);
+      sparks(ctx, W, H, z.depth === 4 ? '#2dfcd2' : '#cffafe', hashSeed(z.key), 120 + z.depth * 60);
+      const g = ctx.createLinearGradient(0, H * 0.55, 0, H);
+      g.addColorStop(0, 'rgba(4,7,22,0)');
+      g.addColorStop(1, 'rgba(4,7,22,0.92)');
+      ctx.fillStyle = g;
+      ctx.fillRect(0, 0, W, H);
+      ctx.save();
+      ctx.scale(2, 2);
+      text(ctx, z.city ? 'نكسس' : DEPTH_LABELS[z.depth], W / 2 - 60, H / 2 - 150, { size: 26, weight: 700, color: z.depth === 4 ? '#2dfcd2' : '#a5b4fc' });
+      text(ctx, z.name, W / 2 - 60, H / 2 - 96, { size: 64, weight: 800, glow: 24, glowColor: 'rgba(103,232,249,0.6)', maxWidth: 1000 });
+      paragraph(ctx, z.description, W / 2 - 60, H / 2 - 44, 1000, { size: 22, weight: 500, color: '#e2e8f0', maxLines: 2 });
+      ctx.restore();
+      vignette(ctx, W, H, 0.45);
+      await save(`art/zones/${loc}/${z.key}.webp`, c, 92);
+    }
+  }
+}
+
+const TYPE_GLYPH = { weapon: 'sword', armor: 'armor', accessory: 'ring', consumable: 'flask', material: 'gem', quest: 'key', misc: 'box' };
+
+/** Base items come from the v1 seed migration; v3 items from the content catalogue. */
+function allItems() {
+  const sql = fs.readFileSync(path.join(ROOT, '..', 'src/db/migrations/0002_seed_world.sql'), 'utf8');
+  const base = [...sql.matchAll(/^\s*\('([a-z0-9_]+)',\s*'[^']*',\s*'([^']*)',\s*'[^']*',\s*'(\w+)',\s*'(\w+)'/gm)].map((m) => ({
+    key: m[1],
+    nameAr: m[2],
+    type: m[3],
+    rarity: m[4],
+  }));
+  const seen = new Set();
+  return [...V3_ITEMS, ...base].filter((i) => !seen.has(i.key) && seen.add(i.key));
+}
+
+// 9. Art for every item (512×512): rarity glow, type glyph, name plate.
+async function itemArt() {
+  for (const it of allItems()) {
+    const S = 512;
+    const c = createCanvas(S, S);
+    const ctx = c.getContext('2d');
+    drawItemArt(ctx, it, { size: S, glyph: TYPE_GLYPH[it.type] ?? 'gem' });
+    ctx.fillStyle = 'rgba(2,4,14,0.75)';
+    ctx.fillRect(16, S - 78, S - 32, 62);
+    text(ctx, it.nameAr ?? it.name_ar ?? it.key, S / 2, S - 47, { size: 30, weight: 800, align: 'center', color: '#fff', maxWidth: S - 60 });
+    await save(`art/items/${it.rarity}/${it.key}.webp`, c, 92);
+  }
+}
+
+// 10. A 4K poster per province: weather of the land, its places, and its colour.
+async function provincePosters() {
+  for (const p of PROVINCES) {
+    const W = 3840;
+    const H = 2160;
+    const c = createCanvas(W, H);
+    const ctx = c.getContext('2d');
+    drawScene(ctx, W, H, sceneFor(p.locations.find((l) => !ZONES[l]?.[0]?.city) ?? p.locations[0]), { seed: hashSeed(p.key) });
+    const g = ctx.createLinearGradient(0, 0, W, 0);
+    g.addColorStop(0, 'rgba(4,7,22,0.15)');
+    g.addColorStop(0.55, 'rgba(4,7,22,0.55)');
+    g.addColorStop(1, 'rgba(4,7,22,0.92)');
+    ctx.fillStyle = g;
+    ctx.fillRect(0, 0, W, H);
+    sparks(ctx, W, H, p.color, hashSeed(p.key), 260);
+    ctx.save();
+    ctx.scale(3, 3);
+    const right = W / 3 - 60;
+    text(ctx, 'مقاطعة', right, 90, { size: 26, weight: 700, color: p.color });
+    text(ctx, p.name, right, 160, { size: 78, weight: 800, glow: 30, glowColor: hexToRgba(p.color, 0.8), maxWidth: 700 });
+    text(ctx, `المستوى ${p.levels[0]} – ${p.levels[1]}`, right, 220, { size: 26, weight: 700, color: '#e2e8f0' });
+    paragraph(ctx, p.blurb, right, 270, 640, { size: 24, weight: 500, color: '#e2e8f0', maxLines: 3, lineHeight: 1.6 });
+    text(
+      ctx,
+      `الطقس: ${p.weather
+        .map((w) => WEATHER[w]?.name)
+        .filter((v, i, a) => v && a.indexOf(v) === i)
+        .join('، ')}`,
+      right,
+      400,
+      {
+        size: 22,
+        weight: 600,
+        color: '#a5f3fc',
+        maxWidth: 700,
+      },
+    );
+    p.locations.slice(0, 8).forEach((l, i) => {
+      const zs = ZONES[l] ?? [];
+      text(ctx, `${zs[0]?.name ?? l}${zs.length > 1 ? `  •  ${zs.length} مناطق` : ''}`, right, 460 + i * 34, {
+        size: 22,
+        weight: 700,
+        color: '#fff',
+        maxWidth: 700,
+      });
+    });
+    ctx.restore();
+    vignette(ctx, W, H, 0.45);
+    await save(`art/provinces/${p.key}-4k.webp`, c, 94);
+  }
+}
+
+const steps = {
+  scenes,
+  wallpapers,
+  emblems,
+  classes: classPosters,
+  story: chapterPosters,
+  bestiary,
+  skills: skillIcons,
+  zones: zonePanoramas,
+  items: itemArt,
+  provinces: provincePosters,
+};
 const started = Date.now();
 for (const [name, fn] of Object.entries(steps)) {
   if (!want(name)) continue;

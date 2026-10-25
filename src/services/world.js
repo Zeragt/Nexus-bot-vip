@@ -7,6 +7,7 @@ import { duration } from '../utils/format.js';
 import { requireByUser, recordVisit, loadCharacter, spendEnergy } from './characters.js';
 import { checkAchievements } from './achievements.js';
 import { audit } from './audit.js';
+import { track } from './progress.js';
 
 export function mapLocation(r) {
   return {
@@ -97,8 +98,9 @@ export async function travel(userId, destination, roles) {
     const cost = travelEnergyCost(from, loc);
     if (cost) await spendEnergy(db, ch, cost);
     const firstVisit = !(await db.query('SELECT 1 FROM character_locations WHERE character_id = $1 AND location_id = $2', [ch.id, loc.id])).rowCount;
-    await db.query('UPDATE characters SET location_id = $2, updated_at = now() WHERE id = $1', [ch.id, loc.id]);
+    await db.query('UPDATE characters SET location_id = $2, zone_key = NULL, updated_at = now() WHERE id = $1', [ch.id, loc.id]);
     await recordVisit(db, ch.id, loc.id);
+    await track(db, ch.id, 'travel', { target: loc.key });
     const unlocked = await checkAchievements(db, ch.id);
     return { from, to: loc, cost, firstVisit, unlocked, character: await loadCharacter(db, ch.id) };
   });

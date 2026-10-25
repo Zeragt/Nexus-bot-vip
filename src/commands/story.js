@@ -24,7 +24,7 @@ async function chapterChoices(userId, q) {
 export const storyCommand = {
   data: new SlashCommandBuilder()
     .setName('story')
-    .setDescription('القصة الكبرى: 25 فصلاً، زعماء، وقرارات مصيرية')
+    .setDescription(`القصة الكبرى: ${CHAPTERS.length} فصلاً، زعماء، وقرارات مصيرية`)
     .addSubcommand((s) => s.setName('current').setDescription('فصلك الحالي وزعيمه'))
     .addSubcommand((s) =>
       s
