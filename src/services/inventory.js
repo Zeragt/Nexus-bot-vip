@@ -4,6 +4,8 @@ import { economy, ui } from '../config/game.js';
 import { EFFECTS } from '../engine/effects.js';
 import { requireByUser, loadCharacter, saveVitals } from './characters.js';
 import { audit } from './audit.js';
+import { openBox } from './boxes.js';
+import { track } from './progress.js';
 
 export function mapItem(r) {
   return {
@@ -170,7 +172,14 @@ export async function useItem(userId, input) {
     const { item } = await ownedItemOrThrow(db, ch, input);
     if (!item.usable || !item.useEffect) throw new UserError('هذا الغرض لا يمكن استخدامه');
     const fx = item.useEffect;
-    const result = { item, healed: 0, energy: 0, cleansed: false, buff: null };
+    const result = { item, healed: 0, energy: 0, cleansed: false, buff: null, box: null };
+    if (fx.box) {
+      await removeItem(db, ch.id, item.id, 1);
+      result.box = await openBox(db, ch.id, fx.box);
+      await track(db, ch.id, 'use_item', { target: item.key });
+      result.character = await loadCharacter(db, ch.id);
+      return result;
+    }
     if (fx.heal || fx.energy) {
       if (fx.heal && ch.hp >= ch.maxHp && !fx.energy) throw new UserError('صحتك ممتلئة بالفعل');
       if (fx.energy && ch.energy >= ch.maxEnergy && !fx.heal) throw new UserError('طاقتك ممتلئة بالفعل');
@@ -196,6 +205,7 @@ export async function useItem(userId, input) {
       result.buff = { key: fx.buff, name: EFFECTS[fx.buff].name, minutes: fx.minutes ?? 30 };
     }
     await removeItem(db, ch.id, item.id, 1);
+    await track(db, ch.id, 'use_item', { target: item.key });
     result.character = await loadCharacter(db, ch.id);
     return result;
   });

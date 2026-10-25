@@ -12,6 +12,7 @@ import { STATS } from '../../src/config/game.js';
 import { spawnBoss, bossHpMult, storyStatus, isAtLocation } from '../../src/services/story.js';
 import { renderStoryPage, renderChapterCover, renderChoice, renderEmblemCard, renderCodexEntry, renderBestiary } from '../../src/render/index.js';
 import { createRng } from '../../src/engine/rng.js';
+import { V3_ITEMS } from '../../src/content/items.js';
 
 const LOCATIONS = new Set([
   'nexus_city',
@@ -34,6 +35,10 @@ const LOCATIONS = new Set([
   'sunken_kingdom',
   'shadow_citadel',
   'the_abyss',
+  'mirror_steppe',
+  'clockwork_isles',
+  'eclipse_sanctum',
+  'nexus_heart',
 ]);
 const ITEMS = new Set([
   'health_potion',
@@ -48,16 +53,17 @@ const ITEMS = new Set([
   'old_map',
   'wolf_pelt',
   'crystal_rose',
+  ...V3_ITEMS.map((i) => i.key),
 ]);
 const FACTIONS = new Set(['nexus_guard', 'adventurers', 'merchants', 'unknown_order']);
 const isImage = (buf) => Buffer.isBuffer(buf) && buf.length > 1000;
 
 describe('story content', () => {
-  it('has four acts and twenty-five ordered chapters', () => {
-    expect(ACTS).toHaveLength(4);
-    expect(CHAPTERS).toHaveLength(25);
+  it('has five acts and thirty ordered chapters', () => {
+    expect(ACTS).toHaveLength(5);
+    expect(CHAPTERS).toHaveLength(30);
     for (let i = 1; i < CHAPTERS.length; i++) expect(CHAPTERS[i].level).toBeGreaterThanOrEqual(CHAPTERS[i - 1].level);
-    expect(new Set(CHAPTERS.map((c) => c.key)).size).toBe(25);
+    expect(new Set(CHAPTERS.map((c) => c.key)).size).toBe(30);
     expect(storyStats().pages).toBeGreaterThan(150);
   });
 
@@ -95,7 +101,8 @@ describe('story content', () => {
     expect(storyStatus(ch, { chapter: 3, choices: {} }).blockers).toHaveLength(1);
     expect(storyStatus({ ...ch, level: 20 }, { chapter: 6, choices: {} }).pendingChoice?.key).toBe('c06');
     expect(storyStatus({ ...ch, level: 20 }, { chapter: 6, choices: { c06: 1 } }).pendingChoice).toBeNull();
-    expect(storyStatus(ch, { chapter: 25, choices: {} }).done).toBe(true);
+    expect(storyStatus(ch, { chapter: CHAPTERS.length, choices: {} }).done).toBe(true);
+    expect(storyStatus(ch, { chapter: 25, choices: {} }).done).toBe(false);
     expect(isAtLocation(ch, CHAPTERS[0], 'city')).toBe(true);
     expect(isAtLocation(ch, CHAPTERS[2], 'wild')).toBe(false);
   });

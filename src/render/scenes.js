@@ -24,6 +24,10 @@ const SKIES = {
   sunken: ['#020b1a', '#0e4a5c', '#5eead4'],
   citadel: ['#030208', '#1e1030', '#f43f5e'],
   abyss: ['#000000', '#12002a', '#a855f7'],
+  mirror: ['#0b1324', '#334155', '#e2e8f0'],
+  clockwork: ['#140b02', '#5a3510', '#fbbf24'],
+  eclipse: ['#050505', '#1c1917', '#fde68a'],
+  heart: ['#02101a', '#0e4f66', '#a5f3fc'],
 };
 
 export const SCENE_OF_LOCATION = {
@@ -47,6 +51,10 @@ export const SCENE_OF_LOCATION = {
   sunken_kingdom: 'sunken',
   shadow_citadel: 'citadel',
   the_abyss: 'abyss',
+  mirror_steppe: 'mirror',
+  clockwork_isles: 'clockwork',
+  eclipse_sanctum: 'eclipse',
+  nexus_heart: 'heart',
 };
 export const SCENES = Object.keys(SKIES);
 
@@ -264,6 +272,39 @@ function island(ctx, x, y, iw, color, top, rng, s) {
  * Paints the scene into the whole canvas area (w×h).
  * `arena: true` adds a fighting floor (grid and spotlights) in the lower part.
  */
+function gearShape(ctx, cx, cy, r, teeth, color, rot = 0) {
+  ctx.save();
+  ctx.translate(cx, cy);
+  ctx.rotate(rot);
+  ctx.beginPath();
+  for (let i = 0; i < teeth * 2; i++) {
+    const a = (i / (teeth * 2)) * TAU;
+    const rr = i % 2 === 0 ? r : r * 0.82;
+    ctx.lineTo(Math.cos(a) * rr, Math.sin(a) * rr);
+  }
+  ctx.closePath();
+  ctx.moveTo(r * 0.35, 0);
+  ctx.arc(0, 0, r * 0.35, 0, TAU, true);
+  ctx.fillStyle = color;
+  ctx.fill('evenodd');
+  ctx.restore();
+}
+
+function mirrorStone(ctx, x, y, mw, mh, s, rng) {
+  ctx.save();
+  ctx.beginPath();
+  ctx.ellipse(x, y - mh / 2, mw / 2, mh / 2, rng.range(-0.15, 0.15), 0, TAU);
+  const g = ctx.createLinearGradient(x - mw / 2, y - mh, x + mw / 2, y);
+  g.addColorStop(0, 'rgba(226,232,240,0.9)');
+  g.addColorStop(0.45, 'rgba(100,116,139,0.85)');
+  g.addColorStop(1, 'rgba(15,23,42,0.95)');
+  ctx.fillStyle = g;
+  ctx.shadowColor = '#e2e8f0';
+  ctx.shadowBlur = 18 * s;
+  ctx.fill();
+  ctx.restore();
+}
+
 export function drawScene(ctx, w, h, scene, { seed = 1, arena = false } = {}) {
   const rng = createRng(seed * 7919 + scene.length);
   const s = w / 1280;
@@ -565,6 +606,139 @@ export function drawScene(ctx, w, h, scene, { seed = 1, arena = false } = {}) {
       }
       ground(ctx, w, h, horizon, ['#12002a', '#000000'], arena ? 'rgba(168,85,247,0.25)' : null);
       particles(ctx, w, h, rng, 120, '#c084fc');
+      break;
+    }
+    case 'mirror': {
+      starsLayer(ctx, w, horizon, rng, 160 * s, '#e2e8f0');
+      glowAt(ctx, w * 0.5, horizon, 520 * s, '#cbd5e1', 0.25);
+      ridge(ctx, w, h, rng, { base: horizon - 30 * s, amp: 40 * s, step: 140 * s, color: '#1e293b' });
+      ground(ctx, w, h, horizon, ['#334155', '#0b1324'], arena ? 'rgba(226,232,240,0.2)' : null);
+      // Glass grass: thin bright blades.
+      ctx.save();
+      ctx.lineWidth = 1.4 * s;
+      for (let i = 0; i < 520; i++) {
+        const x = rng.range(0, w);
+        const y = rng.range(horizon + 6 * s, h);
+        const len = (6 + ((y - horizon) / (h - horizon)) * 30) * s;
+        ctx.strokeStyle = `rgba(226,232,240,${rng.range(0.15, 0.6).toFixed(2)})`;
+        ctx.beginPath();
+        ctx.moveTo(x, y);
+        ctx.lineTo(x + rng.range(-4, 4) * s, y - len);
+        ctx.stroke();
+      }
+      ctx.restore();
+      for (let i = 0; i < 7; i++) {
+        const near = i >= 4;
+        mirrorStone(ctx, rng.range(0, w), horizon + (near ? rng.range(60, 140) : rng.range(4, 30)) * s, (near ? 70 : 34) * s, (near ? 140 : 70) * s, s, rng);
+      }
+      particles(ctx, w, h, rng, 70, '#f8fafc');
+      break;
+    }
+    case 'clockwork': {
+      glowAt(ctx, w * 0.5, horizon - 40 * s, 460 * s, '#f59e0b', 0.3);
+      for (let i = 0; i < 6; i++)
+        gearShape(
+          ctx,
+          rng.range(0, w),
+          rng.range(40, horizon - 60 * s),
+          rng.range(40, 120) * s,
+          10 + Math.floor(rng.range(0, 8)),
+          'rgba(120,53,15,0.55)',
+          rng.range(0, TAU),
+        );
+      // Islands of brass with towers.
+      for (let i = 0; i < 4; i++) {
+        const x = (i + 0.5) * (w / 4) + rng.range(-40, 40) * s;
+        const iw = rng.range(160, 260) * s;
+        ctx.fillStyle = '#3f2208';
+        ctx.beginPath();
+        ctx.ellipse(x, horizon + 6 * s, iw / 2, 22 * s, 0, 0, TAU);
+        ctx.fill();
+        ctx.fillStyle = '#2a1605';
+        const th = rng.range(90, 220) * s;
+        ctx.fillRect(x - 16 * s, horizon - th, 32 * s, th);
+        gearShape(ctx, x, horizon - th, 26 * s, 12, '#fbbf24', rng.range(0, TAU));
+      }
+      // Oil sea.
+      const g = ctx.createLinearGradient(0, horizon, 0, h);
+      g.addColorStop(0, '#1c1206');
+      g.addColorStop(1, '#050301');
+      ctx.fillStyle = g;
+      ctx.fillRect(0, horizon + 18 * s, w, h);
+      ctx.strokeStyle = 'rgba(251,191,36,0.12)';
+      for (let y = horizon + 30 * s; y < h; y += 18 * s) {
+        ctx.beginPath();
+        ctx.moveTo(0, y);
+        for (let x = 0; x <= w; x += 40 * s) ctx.lineTo(x, y + Math.sin(x / (50 * s) + y) * 3 * s);
+        ctx.stroke();
+      }
+      if (arena) ground(ctx, w, h, horizon + 60 * s, ['rgba(63,34,8,0.9)', '#0a0602'], 'rgba(251,191,36,0.18)');
+      particles(ctx, w, h, rng, 60, '#fcd34d');
+      break;
+    }
+    case 'eclipse': {
+      starsLayer(ctx, w, horizon, rng, 220 * s, '#fef3c7');
+      const cx = w * 0.5;
+      const cy = h * 0.24;
+      glowAt(ctx, cx, cy, 260 * s, '#fde68a', 0.45);
+      ctx.save();
+      ctx.shadowColor = '#fde68a';
+      ctx.shadowBlur = 40 * s;
+      ctx.strokeStyle = '#fef3c7';
+      ctx.lineWidth = 6 * s;
+      ctx.beginPath();
+      ctx.arc(cx, cy, 70 * s, 0, TAU);
+      ctx.stroke();
+      ctx.restore();
+      ctx.fillStyle = '#000';
+      ctx.beginPath();
+      ctx.arc(cx, cy, 66 * s, 0, TAU);
+      ctx.fill();
+      ridge(ctx, w, h, rng, { base: horizon - 60 * s, amp: 110 * s, step: 180 * s, color: '#0c0a09', sharp: true });
+      // Temple steps and columns.
+      ctx.fillStyle = '#1c1917';
+      for (let k = 0; k < 5; k++) ctx.fillRect(cx - (300 - k * 40) * s, horizon - k * 14 * s, (600 - k * 80) * s, 14 * s);
+      for (let k = -3; k <= 3; k++) pillar(ctx, cx + k * 70 * s - 12 * s, horizon - 70 * s, 24 * s, 170 * s, '#292524', false, rng, s);
+      ground(ctx, w, h, horizon, ['#1c1917', '#000000'], arena ? 'rgba(253,230,138,0.18)' : null);
+      particles(ctx, w, h, rng, 50, '#fde68a');
+      break;
+    }
+    case 'heart': {
+      ctx.fillStyle = '#01080d';
+      ctx.beginPath();
+      ctx.moveTo(0, 0);
+      for (let x = 0; x <= w; x += 50 * s) ctx.lineTo(x, rng.range(30, 120) * s);
+      ctx.lineTo(w, 0);
+      ctx.fill();
+      // The root of light.
+      const rx = w * 0.5;
+      glowAt(ctx, rx, h * 0.45, 380 * s, '#22d3ee', 0.45);
+      const rg = ctx.createLinearGradient(rx - 70 * s, 0, rx + 70 * s, 0);
+      rg.addColorStop(0, 'rgba(165,243,252,0.1)');
+      rg.addColorStop(0.5, 'rgba(236,254,255,0.85)');
+      rg.addColorStop(1, 'rgba(165,243,252,0.1)');
+      ctx.fillStyle = rg;
+      ctx.beginPath();
+      ctx.moveTo(rx - 40 * s, 0);
+      ctx.bezierCurveTo(rx - 90 * s, h * 0.3, rx + 60 * s, h * 0.5, rx - 70 * s, horizon);
+      ctx.lineTo(rx + 70 * s, horizon);
+      ctx.bezierCurveTo(rx - 30 * s, h * 0.5, rx + 90 * s, h * 0.3, rx + 40 * s, 0);
+      ctx.fill();
+      // Little worlds orbiting the root.
+      for (let i = 0; i < 7; i++) {
+        const a = (i / 7) * TAU + rng.range(0, 0.4);
+        const ox = rx + Math.cos(a) * rng.range(220, 480) * s;
+        const oy = h * 0.38 + Math.sin(a) * rng.range(60, 140) * s;
+        const col = ['#a5f3fc', '#fbbf24', '#e2e8f0', '#fde68a', '#86efac', '#f0abfc', '#93c5fd'][i];
+        glowAt(ctx, ox, oy, 34 * s, col, 0.6);
+        ctx.fillStyle = col;
+        ctx.beginPath();
+        ctx.arc(ox, oy, rng.range(9, 18) * s, 0, TAU);
+        ctx.fill();
+      }
+      for (let i = 0; i < 10; i++) crystal(ctx, rng.range(0, w), horizon + rng.range(0, 30) * s, rng.range(30, 70) * s, rng.range(60, 160) * s, '#67e8f9', s);
+      ground(ctx, w, h, horizon + 16 * s, ['#083344', '#01080d'], arena ? 'rgba(165,243,252,0.22)' : null);
+      particles(ctx, w, h, rng, 110, '#cffafe');
       break;
     }
     case 'gate':

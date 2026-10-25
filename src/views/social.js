@@ -9,6 +9,7 @@ import { guildProgression } from '../config/game.js';
 import { characterImage } from './avatars.js';
 import { theme } from '../render/theme.js';
 import { duration, compact } from '../utils/format.js';
+import { lossPct } from '../services/stakes.js';
 
 const fmtDate = (d) => new Date(d).toISOString().slice(0, 10);
 const fmtShort = (d) => {
@@ -27,7 +28,12 @@ export async function challengeMessage({ id, challenger, opponent }) {
     subtitle: `${challenger.name} (LV ${challenger.level}) يتحدى ${opponent.name} (LV ${opponent.level})`,
     iconName: 'swords',
     color: '#ff4f7b',
-    body: 'لديك دقيقتان للرد. القتال بالأدوار: هجوم، مهارات، دفاع، أغراض، أو انسحاب.',
+    tiles: [
+      { label: 'الخاسر يفقد', value: `${await lossPct('pvp')}% XP`, iconName: 'sparkle', color: '#fb7185' },
+      { label: 'غرض من الحقيبة', value: 'قد يسقط للفائز', iconName: 'bag', color: theme.gold },
+      { label: 'غرض سري', value: '0.01%', iconName: 'gem', color: '#2dfcd2' },
+    ],
+    body: 'لديك دقيقتان للرد. كلما ندر الغرض قلّ احتمال سقوطه. لا انسحاب في المبارزة، والاستسلام يُحسب خسارة. تميمة الحارس في حقيبتك تتحطم بدل أن يسقط غرضك.',
   });
   return {
     content: `<@${opponent.userId}>`,
@@ -51,7 +57,9 @@ export function combatComponents(session) {
     row(
       button(cid('cb', 'atk', session.id), 'هجوم', ButtonStyle.Danger, { emoji: '⚔️' }),
       button(cid('cb', 'def', session.id), 'دفاع', ButtonStyle.Primary, { emoji: '🛡️' }),
-      button(cid('cb', 'flee', session.id), 'انسحاب', ButtonStyle.Secondary, { emoji: '🏃' }),
+      s.pvp
+        ? button(cid('cb', 'ff', session.id), 'استسلام', ButtonStyle.Secondary, { emoji: '🏳️' })
+        : button(cid('cb', 'flee', session.id), 'انسحاب', ButtonStyle.Secondary, { emoji: '🏃' }),
     ),
   ];
   if (acts.skills.length) {

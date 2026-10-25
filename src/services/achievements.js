@@ -1,12 +1,20 @@
 import { getPool } from '../db/pool.js';
 import { grantXp } from './characters.js';
+import { ZONE_BY_KEY } from '../content/regions.js';
+
+const HIDDEN_ZONES = Object.values(ZONE_BY_KEY)
+  .filter((z) => z.depth === 4)
+  .map((z) => z.key);
 
 async function metrics(db, characterId) {
   const { rows } = await db.query(
     `SELECT c.level, c.nx, c.combat_wins, c.quests_completed, c.shifts_worked, c.trades_completed,
-            (SELECT count(*)::int FROM character_locations WHERE character_id = c.id) AS locations
+            c.dailies_completed, c.quest_streak_best, c.explorations, c.items_crafted, c.pvp_wins, c.elites_slain,
+            (SELECT count(*)::int FROM character_locations WHERE character_id = c.id) AS locations,
+            (SELECT count(*)::int FROM character_exploration e, jsonb_array_elements_text(e.zones) z
+              WHERE e.character_id = c.id AND z = ANY($2::text[])) AS hidden_zones
      FROM characters c WHERE c.id = $1`,
-    [characterId],
+    [characterId, HIDDEN_ZONES],
   );
   const r = rows[0];
   if (!r) return null;
@@ -19,6 +27,13 @@ async function metrics(db, characterId) {
     shifts_worked: r.shifts_worked,
     trades_completed: r.trades_completed,
     locations: r.locations,
+    dailies_completed: r.dailies_completed,
+    quest_streak_best: r.quest_streak_best,
+    explorations: r.explorations,
+    items_crafted: r.items_crafted,
+    pvp_wins: r.pvp_wins,
+    elites_slain: r.elites_slain,
+    hidden_zones: r.hidden_zones,
   };
 }
 

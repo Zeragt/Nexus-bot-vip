@@ -1,5 +1,6 @@
 // Tunes each story boss's HP so AI-played heroes of several classes win at a target rate,
-// then rewrites src/content/story/balance.js. Usage: node scripts/tune-bosses.js [fightsPerClass]
+// then rewrites src/content/story/balance.js. Usage: node scripts/tune-bosses.js [fightsPerClass] [--missing]
+// --missing keeps the existing numbers and only tunes chapters that have none yet (new acts).
 import fs from 'node:fs';
 import { CHAPTERS } from '../src/content/story/index.js';
 import { CLASSES, CLASS_BY_KEY } from '../src/content/classes.js';
@@ -10,6 +11,7 @@ import { spawnEnemy } from '../src/engine/enemies.js';
 import { createRng } from '../src/engine/rng.js';
 import { progression as P, STATS } from '../src/config/game.js';
 import { bossStatLevel } from '../src/services/story.js';
+import { BOSS_TUNE } from '../src/content/story/balance.js';
 
 const N = Number(process.argv[2] ?? 30);
 // One class per category, so no single playstyle decides the numbers.
@@ -81,8 +83,10 @@ function winRate(ch, hpMult) {
 }
 
 if (import.meta.url === `file://${process.argv[1]}`) {
-  const tune = {};
+  const onlyMissing = process.argv.includes('--missing');
+  const tune = onlyMissing ? { ...BOSS_TUNE } : {};
   for (const ch of CHAPTERS) {
+    if (onlyMissing && tune[ch.key] != null) continue;
     const curve = 1.5 + (ch.index / 24) * 1.4;
     let lo = 0.3;
     let hi = 6;

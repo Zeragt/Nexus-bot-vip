@@ -422,6 +422,138 @@ export const ENEMIES = {
       loot: [['star_shard', 0.12]],
     },
   ],
+  // v3: the Returned Worlds.
+  mirror_steppe: [
+    {
+      key: 'glass_stalker',
+      name: 'متربص الزجاج',
+      archetype: 'beast',
+      palette: ['#cbd5e1', '#67e8f9'],
+      weights: { agility: 1.5, strength: 1.2 },
+      skills: ['ambush', 'crystalspike'],
+      loot: [
+        ['glass_grass', 0.7],
+        ['mirror_shard', 0.25],
+      ],
+    },
+    {
+      key: 'reflection',
+      name: 'انعكاس ضائع',
+      archetype: 'ghost',
+      palette: ['#e2e8f0', '#a5f3fc'],
+      weights: { intelligence: 1.5, agility: 1.3 },
+      skills: ['echo', 'shadowbolt'],
+      loot: [['mirror_shard', 0.35]],
+    },
+    {
+      key: 'shard_golem',
+      name: 'غولم الشظايا',
+      archetype: 'golem',
+      palette: ['#94a3b8', '#f0f9ff'],
+      weights: { defense: 1.6, strength: 1.3 },
+      skills: ['rockslam', 'harden'],
+      loot: [
+        ['mirror_shard', 0.3],
+        ['glass_grass', 0.5],
+      ],
+    },
+  ],
+  clockwork_isles: [
+    {
+      key: 'brass_hound',
+      name: 'كلب النحاس',
+      archetype: 'beast',
+      palette: ['#78350f', '#fbbf24'],
+      weights: { agility: 1.4, strength: 1.3 },
+      skills: ['bite', 'lightning'],
+      loot: [['brass_gear', 0.7]],
+    },
+    {
+      key: 'clock_sentry',
+      name: 'حارس الدقائق',
+      archetype: 'golem',
+      palette: ['#451a03', '#fde68a'],
+      weights: { defense: 1.5, endurance: 1.4 },
+      skills: ['harden', 'rockslam'],
+      loot: [
+        ['brass_gear', 0.6],
+        ['chrono_spring', 0.08],
+      ],
+    },
+    {
+      key: 'gear_wyrm',
+      name: 'تنين التروس',
+      archetype: 'dragon',
+      palette: ['#422006', '#f59e0b'],
+      weights: { strength: 1.5, endurance: 1.4 },
+      skills: ['ember', 'coil'],
+      loot: [['chrono_spring', 0.12]],
+    },
+  ],
+  eclipse_sanctum: [
+    {
+      key: 'shadowless_monk',
+      name: 'راهب بلا ظل',
+      archetype: 'humanoid',
+      palette: ['#1f2937', '#fde68a'],
+      weights: { intelligence: 1.4, agility: 1.3 },
+      skills: ['curse', 'mend'],
+      loot: [['eclipse_ash', 0.6]],
+    },
+    {
+      key: 'umbra_moth',
+      name: 'عثة الظل التام',
+      archetype: 'insect',
+      palette: ['#0f172a', '#facc15'],
+      weights: { agility: 1.6, intelligence: 1.2 },
+      skills: ['ashstorm', 'drain'],
+      loot: [
+        ['eclipse_ash', 0.5],
+        ['penumbra_silk', 0.1],
+      ],
+    },
+    {
+      key: 'corona_wraith',
+      name: 'شبح الهالة',
+      archetype: 'ghost',
+      palette: ['#111827', '#fb923c'],
+      weights: { intelligence: 1.6, strength: 1.2 },
+      skills: ['riftfire', 'wail'],
+      loot: [['penumbra_silk', 0.15]],
+    },
+  ],
+  nexus_heart: [
+    {
+      key: 'root_warden',
+      name: 'حارس الجذور',
+      archetype: 'golem',
+      palette: ['#0e7490', '#cffafe'],
+      weights: { defense: 1.6, endurance: 1.5 },
+      skills: ['harden', 'crystalspike'],
+      loot: [['nexus_essence', 0.08]],
+    },
+    {
+      key: 'dream_eater',
+      name: 'آكل الأحلام',
+      archetype: 'eldritch',
+      palette: ['#1e1b4b', '#f0abfc'],
+      weights: { intelligence: 1.7, agility: 1.3 },
+      skills: ['abyssgaze', 'drain'],
+      loot: [['nexus_essence', 0.1]],
+    },
+    {
+      key: 'pulse_spirit',
+      name: 'روح النبض',
+      archetype: 'sprite',
+      palette: ['#082f49', '#22d3ee'],
+      weights: { agility: 1.5, intelligence: 1.5 },
+      skills: ['lightning', 'echo'],
+      loot: [
+        ['nexus_essence', 0.06],
+        ['star_shard', 0.4],
+      ],
+    },
+  ],
 };
 
 export function enemiesFor(locationKey) {
@@ -441,8 +573,10 @@ export function findEnemy(key) {
  * below the player's power at danger 0-2 and above it in dangerous places.
  * `boss` templates (from the story) pass `levelOffset`, `hpMult` and `statMult`.
  */
-export function spawnEnemy(template, { playerLevel, danger = 0, skillsByKey = {}, boss = false, statLevel = null }, rng) {
-  const level = boss ? Math.max(1, playerLevel + (template.levelOffset ?? 1)) : Math.max(1, Math.round(playerLevel * 0.85 + danger * 0.4 - 1 + rng.int(-1, 1)));
+export function spawnEnemy(template, { playerLevel, danger = 0, skillsByKey = {}, boss = false, statLevel = null, levelBonus = 0, elite = false }, rng) {
+  const level = boss
+    ? Math.max(1, playerLevel + (template.levelOffset ?? 1))
+    : Math.max(1, Math.round(playerLevel * 0.85 + danger * 0.4 - 1 + rng.int(-1, 1)) + levelBonus);
   // `statLevel` lets story bosses show their lore level while their numbers stay fair.
   const power = statLevel ?? level;
   // Roughly a well-built hero's spread at the same level, but in every stat at once.
@@ -472,11 +606,18 @@ export function spawnEnemy(template, { playerLevel, danger = 0, skillsByKey = {}
     skills,
     ai: true,
     avatarKey: template.key,
-    look: { monster: template.archetype ?? 'beast', palette: template.palette ?? ['#1e293b', '#22d3ee'], boss: boss || undefined, crown: template.crown },
-    boss,
+    look: {
+      monster: template.archetype ?? 'beast',
+      palette: template.palette ?? ['#1e293b', '#22d3ee'],
+      boss: boss || elite || undefined,
+      crown: template.crown ?? elite,
+    },
+    boss: boss || elite,
+    elite: elite || undefined,
   });
 }
 
-export function rollLoot(template, rng) {
-  return (template.loot ?? []).filter(([, chance]) => rng.chance(chance)).map(([key]) => key);
+/** Loot keys that dropped. `mult` scales every chance (zone depth, weather, mastery), capped at 100%. */
+export function rollLoot(template, rng, mult = 1) {
+  return (template.loot ?? []).filter(([, chance]) => rng.chance(Math.min(1, chance * mult))).map(([key]) => key);
 }

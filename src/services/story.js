@@ -12,6 +12,7 @@ import { adjustFactionRep } from './factions.js';
 import { startScriptedFight } from './combat.js';
 import { getSetting } from './settings.js';
 import { audit } from './audit.js';
+import { track } from './progress.js';
 
 function mapProgress(r) {
   return {
@@ -90,11 +91,15 @@ export async function readPage(userId, chapterKey, page) {
   }
   const total = chapter.pages.length;
   const p = Math.min(Math.max(1, page), total);
-  if ((progress.readPages[chapter.key] ?? 0) < p) {
-    await getPool().query(
-      `UPDATE character_story SET read_pages = read_pages || jsonb_build_object($2::text, $3::int), updated_at = now() WHERE character_id = $1`,
-      [ch.id, chapter.key, p],
-    );
+  const before = progress.readPages[chapter.key] ?? 0;
+  if (before < p) {
+    await tx(async (db) => {
+      await db.query(
+        `UPDATE character_story SET read_pages = read_pages || jsonb_build_object($2::text, $3::int), updated_at = now() WHERE character_id = $1`,
+        [ch.id, chapter.key, p],
+      );
+      await track(db, ch.id, 'story_page', { target: chapter.key, amount: p - before });
+    });
   }
   return { ch, chapter, page: p, total, progress, completed: chapter.index < progress.chapter };
 }

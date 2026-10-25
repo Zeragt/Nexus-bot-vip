@@ -7,6 +7,31 @@
 
 ---
 
+## 🆕 الجديد في الإصدار 3
+
+| النظام           | ماذا يقدّم                                                                                                                                                                                                                                                    |
+| ---------------- | ------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
+| المهام اليومية   | **لوحة من 6 مهام تتغير كل يوم** لكل لاعب (سهلة، أساسية، إقليمية، اجتماعية، صعبة) حسب مستواه ومكانه، و**3 مهام أسبوعية**، وصندوق يومي عند إكمال اللوحة كلها، وسلسلة أيام بمكافآت (3، 7، 14، 30 يوماً)، وتبديل مهمة (مجاني ثم برمز أو NX). `/daily`             |
+| هدف السيرفر      | هدف يومي مشترك بين كل اللاعبين (اصطادوا، استكشفوا، اجمعوا...). حين يكتمل يستلم كل من ساهم نصيبه. `/daily world`                                                                                                                                               |
+| رهانات المبارزة  | **الخاسر في التحدي يفقد 30% من خبرة مستواه** (لا يفقد مستوى أبداً)، وقد **يسقط منه غرض واحد من الحقيبة يأخذه الفائز**: احتمال السقوط حسب الندرة، والغرض **السري 0.0001**. تميمة الحارس تتحطم بدل الغرض. الخسارة أمام الوحوش والزعماء: 10% خبرة فقط وبلا أغراض |
+| المناطق          | 7 مقاطعات، وكل مكان بري مقسوم إلى **4 مناطق**: الأطراف، العمق، القلب، و**منطقة مخفية** تُكتشف بالاستكشاف ولها سر. طقس يتغير كل 3 ساعات ويؤثر على الغنائم والخطر والجمع، ورتب إتقان للمقاطعة. `/zone` `/region`                                                |
+| الاستكشاف والجمع | `/explore`: موارد، مخابئ، آثار، مسافرون، فخاخ، مزارات، كمائن، ووحوش نخبة نادرة. `/gather`: موارد المنطقة للصناعة                                                                                                                                              |
+| الصناعة          | 34 وصفة في 3 محطات (السندان، الخيمياء، نار المخيم): جرعات، عتاد كل إقليم، تمائم ورموز. `/craft`                                                                                                                                                               |
+| الأغراض          | ندرة جديدة **سري**، 7 آثار سرية، 37 مادة، 18 قطعة عتاد إقليمية، صناديق تُفتح من الحقيبة                                                                                                                                                                       |
+| القصة            | **الجزء الخامس: العوالم العائدة**، 5 فصول جديدة حتى المستوى 100 في 4 أماكن جديدة (سهوب المرايا، جزر الساعات، محراب الكسوف، قلب نكسس)، 5 زعماء مضبوطين بالمحاكاة، وقرار أخير. المجموع **30 فصلاً**                                                             |
+| الإصلاحات        | أغراض مهام «الجمع» لا تضيع إن رُفضت المراجعة، أهداف «الزيارة» تُحتسب فقط بعد قبول المهمة، قفل صحيح لنشاط الرول بلاي وتوحيد يومه، أيام المهام لا تتأثر بتوقيت الخادم                                                                                           |
+| الفن             | الحزمة الفنية صارت أكثر من **400 ميغابايت**: أيقونة لكل مهارة من الـ 10,450، لوحة لكل منطقة، صورة لكل غرض، ملصق 4K لكل مقاطعة، وصور النخبة والزعماء الجدد                                                                                                     |
+
+### إعدادات الإصدار 3 (`/admin settings set`)
+
+- `pvp_xp_loss_pct` (افتراضي 30) و `pve_xp_loss_pct` (افتراضي 10): نسبة الخبرة التي يخسرها المهزوم.
+- `pvp_item_drop_enabled`: سقوط الأغراض في المبارزات.
+- `daily_reset_offset_hours` (افتراضي 3 = توقيت بغداد): متى يتجدد يوم المهام.
+- `daily_free_rerolls`، `world_goal_enabled`، `explore_enabled`.
+- `/admin character dailyreset`: يعيد توليد مهام لاعب اليوم.
+
+---
+
 ## 🆕 الجديد في الإصدار 2
 
 | النظام    | ماذا يقدّم                                                                                                                                                                                                                                                                              |
@@ -94,7 +119,9 @@
 - `/inventory view | use | equip | unequip | drop | info`
 - `/economy balance | pay | daily | leaderboard`
 - `/travel` `/world map | location | lore` `/npc list | view | talk` `/shop view | buy | sell`
+- `/daily board | claim | reroll | world view | world claim`
 - `/quest board | list | view | accept | active | abandon | complete`
+- `/explore` `/gather` `/zone view | move` `/region` `/craft list | make`
 - `/hunt` `/combat challenge | status | forfeit`
 - `/trade @user`
 - `/guild create | profile | members | invite | accept | leave | promote | demote | kick | deposit | withdraw | disband`
@@ -106,7 +133,7 @@
 
 **الإدارة** (مخفية افتراضياً عن الأعضاء، والصلاحية تُفحص في الخادم عند كل استخدام)
 
-- `/admin character view | setstat | xp | heal | unlock | classreset | story | delete`
+- `/admin character view | setstat | xp | heal | unlock | classreset | story | dailyreset | delete`
 - `/admin economy add | remove` · `/admin item give | take | create` · `/admin guild disband`
 - `/admin faction create | rep` · `/admin settings view | set` · `/admin logs`
 - `/gm quest create | toggle | reviews | review`
@@ -163,11 +190,11 @@ npm test               # اختبارات (الوحدة دائماً، والت�
 npm run db:migrate     # تطبيق الترحيلات   |  npm run db:status
 npm run db:generate -- add_pets   # ترحيل جديد فارغ
 npm run render:preview # يرسم كل البطاقات في ./preview بدون ديسكورد
-npm run assets         # يبني الحزمة الفنية في assets/ (حوالي 3 دقائق، 170 ميغابايت)
-npm run tune:bosses    # يحاكي معارك القصة ويعيد ضبط صحة الزعماء
+npm run assets         # يبني الحزمة الفنية في assets/ (أكثر من 400 ميغابايت)
+npm run tune:bosses    # يحاكي معارك القصة ويعيد ضبط صحة الزعماء (--missing للفصول الجديدة فقط)
 ```
 
-**الحزمة الفنية اختيارية**: البوت يرسم كل شيء مباشرة إن لم تجدها. مجلد `assets/scenes` صغير ويسرّع البطاقات، ومجلد `assets/art` هو الملصقات والشعارات عالية الدقة التي يرسلها البوت عند ضغط «ملصق HD»، ويمكنك استخدامها كأيقونات رتب وخلفيات للسيرفر. إن كانت مساحة الاستضافة محدودة يمكنك عدم رفع `assets/art`، وتختفي أزرار الملصقات فقط.
+**الحزمة الفنية اختيارية**: البوت يرسم كل شيء مباشرة إن لم تجدها. **للاستضافة على Wispbyte استخدم النسخة الخفيفة** (بدون `assets/art`) لأن مساحة القرص محدودة. مجلد `assets/scenes` صغير ويسرّع البطاقات، ومجلد `assets/art` هو الملصقات والشعارات عالية الدقة التي يرسلها البوت عند ضغط «ملصق HD»، ويمكنك استخدامها كأيقونات رتب وخلفيات للسيرفر. إن كانت مساحة الاستضافة محدودة يمكنك عدم رفع `assets/art`، وتختفي أزرار الملصقات فقط.
 
 اختبارات التكامل تشغّل الأوامر الحقيقية بتفاعلات مُحاكاة على قاعدة بيانات فعلية (يتم مسحها!):
 
@@ -183,7 +210,7 @@ src/index.js              الإقلاع: البيئة، القاعدة، الت
 src/config/               env.js (تحقق zod) و game.js (كل أرقام التوازن)
 src/core/                 التفاعلات، الصلاحيات، التهدئة، المجدول، السجلات
 src/db/                   الاتصال، الترحيل، migrations/*.sql
-src/content/              المحتوى: الكلاسات، مولّد المسارات والمهارات، القصة (story/act1-4.js)، الأرشيف (lore.js)
+src/content/              المحتوى: الكلاسات، المهارات، القصة (story/act1-5.js)، الأرشيف، المقاطعات والمناطق (regions.js)، الأغراض (items.js)، المهام اليومية (dailyQuests.js)، الوصفات (recipes.js)
 src/engine/               منطق نقي قابل للاختبار: القتال، التأثيرات، التقدم، المهام، التداول
 src/services/             قواعد اللعبة فوق قاعدة البيانات
 src/render/               محرك الصور (canvas) والبطاقات، الشخصيات 2D (sprites.js)، المشاهد، الشعارات
@@ -195,7 +222,8 @@ tests/                    اختبارات الوحدة والتكامل
 
 **إضافة محتوى**: أغراض، مهام، NPC، أماكن وأحداث تُضاف من داخل ديسكورد عبر `/admin` و `/gm`. ولتعديل العالم الافتراضي أو إضافة جداول، أنشئ ترحيلاً جديداً (`npm run db:generate`) ولا تعدّل ترحيلاً طُبّق سابقاً.
 **تأثير قتالي جديد**: أضف مدخلاً واحداً في `src/engine/effects.js`.
-**فصل قصة جديد**: أضف فصلاً في `src/content/story/act4.js` (أو جزءاً جديداً في `story/index.js`)، ثم شغّل `npm run tune:bosses`.
+**فصل قصة جديد**: أضف فصلاً في `src/content/story/act5.js` (أو جزءاً جديداً في `story/index.js`)، ثم شغّل `npm run tune:bosses -- 30 --missing`.
+**مهمة يومية جديدة**: سطر واحد في `src/content/dailyQuests.js`. **منطقة أو مقاطعة**: `src/content/regions.js`. **وصفة**: `src/content/recipes.js`. كلها تتزامن مع القاعدة تلقائياً.
 **مدخل أرشيف**: أضفه في `src/content/lore.js`، أو من ديسكورد عبر `/gm world lore` (يظهر في باب «مدونات الإدارة»).
 **الكلاسات**: كل كلاس سطر واحد في `src/content/classes.js`، والمسارات والمهارات تُولَّد منه وتُزامَن مع القاعدة تلقائياً عند الإقلاع.
 
@@ -218,5 +246,6 @@ Nexus is a Discord RPG/roleplay bot in plain JavaScript (Node 22, ESM) with disc
 - **Run**: copy `.env.example` → `.env`, `npm install`, `npm start`. Startup waits for Neon, applies SQL migrations (advisory-locked, pooler-safe), deploys slash commands only when they changed, logs in, and starts a DB-coordinated scheduler. Falls back automatically if the Message Content intent is not enabled.
 - **Systems**: characters (`NX-000001` IDs), stats/XP/levels, NX economy, inventory/equipment, skills, turn-based PvE/PvP combat with status effects and turn timers, quests with a rendered quest board and staff review, NPCs/shops, locations/travel/map, guilds, factions, jobs, relationships, trading with two-sided confirmation, achievements, leaderboards, phased events with voting, random events, lore archive, Tupperbox-safe RP XP.
 - **v2**: 55 classes × 30 paths × 100 skills (generated, synced to the DB on boot), 2D combat sprites that wear the player's avatar, a 25-chapter story with bosses and choices (`/story`), a 66-entry codex with spoiler gating and a bestiary (`/codex`), six new regions, simulation-tuned balance (`npm run tune:bosses`), and an optional ~170 MB art pack (`npm run assets`: 1,650 path crests, class and chapter posters, 4K wallpapers, monster portraits).
+- **v3**: daily boards (6 quests that change every day per player, 3 weekly, streaks, rerolls, a server-wide daily goal), duel stakes (loser drops 30% of in-level XP and may drop one bag item to the winner, rolled by rarity, secret = 0.0001; monsters take 10% and no items), provinces with weather and mastery, 4 zones per wild location including a hidden one, `/explore` `/gather` `/craft`, a `secret` rarity, Act 5 (30 chapters to level 100), several bug fixes, and an art pack over 400 MB (an icon for each of the 10,450 skills, zone panoramas, item art, province posters).
 - **Admin**: `/admin` and `/gm`, gated by role **IDs** (Owner, Admin, Moderator, Event Manager, Lore Manager) checked server-side on every use, with a full audit log (DB + log channel).
 - **Quality**: `npm run check` runs ESLint, a build check (imports, Discord command size limits) and the Vitest suite. Integration tests drive the real handlers with simulated interactions against a real Postgres when `TEST_DATABASE_URL` is set.

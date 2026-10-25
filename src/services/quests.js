@@ -2,7 +2,7 @@ import { getPool, tx } from '../db/pool.js';
 import { UserError } from '../core/errors.js';
 import { ui } from '../config/game.js';
 import { checkQuestRequirements, evaluateObjectives, needsReview, autoObjectivesDone } from '../engine/quests.js';
-import { requireByUser, visitedKeys } from './characters.js';
+import { requireByUser } from './characters.js';
 import { inventoryMap, removeItem } from './inventory.js';
 import { grantRewards } from './rewards.js';
 import { audit } from './audit.js';
@@ -124,7 +124,6 @@ export async function accept(userId, code) {
 async function evaluateFor(db, ch, quest, progress) {
   return evaluateObjectives(quest.objectives, {
     inventory: await inventoryMap(db, ch.id),
-    visited: await visitedKeys(ch.id, db),
     progress: progress ?? {},
     currentLocationKey: ch.location?.key,
   });
@@ -170,8 +169,21 @@ export async function abandon(userId, code) {
   });
 }
 
+/** Hands in "collect" items. Done at payout so a rejected review never eats the player's items. */
+async function consumeCollect(db, characterId, quest) {
+  for (const o of quest.objectives.filter((x) => x.kind === 'collect')) {
+    const item = (await db.query('SELECT id FROM items WHERE key = $1', [o.targetKey])).rows[0];
+    if (!item) continue;
+    const have = (await db.query('SELECT quantity FROM inventory_items WHERE character_id = $1 AND item_id = $2 FOR UPDATE', [characterId, item.id])).rows[0]
+      ?.quantity;
+    if ((have ?? 0) < o.requiredCount) throw new UserError(`لم تعد تملك ما يكفي من أغراض المهمة «${quest.title}» (${o.description})`);
+    await removeItem(db, characterId, item.id, o.requiredCount);
+  }
+}
+
 /** Pays a quest out (shared by auto-complete and staff approval). */
 async function payout(db, characterId, quest, cqId) {
+  await consumeCollect(db, characterId, quest);
   await db.query("UPDATE character_quests SET status = 'completed', completed_at = now() WHERE id = $1", [cqId]);
   await db.query('UPDATE characters SET quests_completed = quests_completed + 1 WHERE id = $1', [characterId]);
   return grantRewards(db, characterId, {
@@ -187,7 +199,7 @@ async function payout(db, characterId, quest, cqId) {
 }
 
 /**
- * Turns in a quest. Auto-verifiable objectives must be done; "collect" items are consumed.
+ * Turns in a quest. Auto-verifiable objectives must be done; "collect" items are consumed at payout.
  * Quests with manual objectives (RP scenes) go to staff review instead of paying out.
  */
 export async function complete(userId, code) {
@@ -211,10 +223,6 @@ export async function complete(userId, code) {
     if (!autoObjectivesDone(evaluated)) {
       const left = evaluated.filter((o) => o.kind !== 'manual' && !o.done).map((o) => `• ${o.description} (${o.current}/${o.requiredCount})`);
       throw new UserError(`لم تكتمل الأهداف بعد:\n${left.join('\n')}`);
-    }
-    for (const o of quest.objectives.filter((x) => x.kind === 'collect')) {
-      const item = (await db.query('SELECT id FROM items WHERE key = $1', [o.targetKey])).rows[0];
-      if (item) await removeItem(db, ch.id, item.id, o.requiredCount);
     }
     if (needsReview(quest, evaluated)) {
       await db.query("UPDATE character_quests SET status = 'pending_review' WHERE id = $1", [cq.id]);

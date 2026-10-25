@@ -19,9 +19,9 @@ export function checkQuestRequirements(quest, ctx) {
 
 /**
  * Evaluates objectives against the character's state.
- * progress: counters recorded by the game (defeat/work), keyed by objective id.
+ * progress: counters recorded by the game (defeat/work/visit), keyed by objective id.
  */
-export function evaluateObjectives(objectives, { inventory, visited, progress, currentLocationKey }) {
+export function evaluateObjectives(objectives, { inventory, progress, currentLocationKey }) {
   return objectives.map((o) => {
     let current;
     switch (o.kind) {
@@ -29,7 +29,8 @@ export function evaluateObjectives(objectives, { inventory, visited, progress, c
         current = inventory[o.targetKey] ?? 0;
         break;
       case 'visit':
-        current = visited.includes(o.targetKey) || currentLocationKey === o.targetKey ? 1 : 0;
+        // Only visits made after accepting count (travel records them in progress), or standing there now.
+        current = (progress[o.id] ?? 0) > 0 || currentLocationKey === o.targetKey ? 1 : 0;
         break;
       case 'defeat':
       case 'work':

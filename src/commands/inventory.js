@@ -89,10 +89,17 @@ export default {
       if (res.energy) tiles.push({ label: 'الطاقة', value: `+${res.energy}  (${res.character.energy}/${res.character.maxEnergy})`, iconName: 'zap' });
       if (res.cleansed) tiles.push({ label: 'التطهير', value: 'زالت التأثيرات السلبية', iconName: 'sparkle', color: theme.success });
       if (res.buff) tiles.push({ label: res.buff.name, value: `${res.buff.minutes} دقيقة`, iconName: 'flame', color: theme.violet });
+      if (res.box) {
+        if (res.box.nx) tiles.push({ label: 'NX', value: `+${res.box.nx}`, iconName: 'coin', color: theme.gold });
+        if (res.box.xp) tiles.push({ label: 'الخبرة', value: `+${res.box.xp}`, iconName: 'star' });
+        for (const it of res.box.items.slice(0, 7))
+          tiles.push({ label: it.name, value: `x${it.quantity}`, iconName: 'box', color: rarityColors[it.rarity] ?? theme.text });
+        if (!tiles.length) tiles.push({ label: 'الصندوق', value: 'فارغ هذه المرة', iconName: 'box' });
+      }
       const buf = await renderNotice({
-        title: `استخدمت ${res.item.name}`,
+        title: res.box ? `فتحت ${res.item.name}` : `استخدمت ${res.item.name}`,
         subtitle: res.item.description,
-        iconName: 'flask',
+        iconName: res.box ? 'box' : 'flask',
         color: rarityColors[res.item.rarity],
         tiles,
       });

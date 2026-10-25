@@ -1,4 +1,5 @@
 import { allGeneratedSkills, contentFingerprint } from '../content/classGen.js';
+import { V3_ITEMS, SHOP_STOCK } from '../content/items.js';
 import { logger } from '../core/logger.js';
 
 const LOCK_KEY = 74_221_338;
@@ -76,4 +77,77 @@ export async function syncContent(pool, { force = false, log = logger } = {}) {
   }
   log.info({ skills: skills.length, ms: Date.now() - started }, 'Class content synced');
   return { skipped: false, fingerprint, skills: skills.length };
+}
+
+function hashOf(value) {
+  let h = 2166136261;
+  const str = JSON.stringify(value);
+  for (let i = 0; i < str.length; i++) h = Math.imul(h ^ str.charCodeAt(i), 16777619);
+  return (h >>> 0).toString(16);
+}
+
+/**
+ * v3 world content: the item catalogue (materials, region gear, secret relics, boxes) and the
+ * extra shop stock. Upserted by key, only when the content changed. Items made by admins
+ * (created_by set) are never overwritten.
+ */
+export async function syncWorldContent(pool, { force = false, log = logger } = {}) {
+  const fingerprint = `w1-${hashOf([V3_ITEMS, SHOP_STOCK])}`;
+  if (!force) {
+    const { rows } = await pool.query("SELECT value FROM settings WHERE key = 'world_content_hash'");
+    if (rows[0]?.value === fingerprint) return { skipped: true, items: 0 };
+  }
+  const client = await pool.connect();
+  try {
+    await client.query('BEGIN');
+    await client.query('SELECT pg_advisory_xact_lock($1)', [LOCK_KEY + 1]);
+    for (const it of V3_ITEMS) {
+      await client.query(
+        `INSERT INTO items (key, name, name_ar, description, type, rarity, value, weight, stats, use_effect, usable, equippable, slot, tradeable)
+         VALUES ($1,$2,$3,$4,$5,$6,$7,$8,$9::jsonb,$10::jsonb,$11,$12,$13,TRUE)
+         ON CONFLICT (key) DO UPDATE SET name = EXCLUDED.name, name_ar = EXCLUDED.name_ar, description = EXCLUDED.description,
+           type = EXCLUDED.type, rarity = EXCLUDED.rarity, value = EXCLUDED.value, weight = EXCLUDED.weight, stats = EXCLUDED.stats,
+           use_effect = EXCLUDED.use_effect, usable = EXCLUDED.usable, equippable = EXCLUDED.equippable, slot = EXCLUDED.slot
+         WHERE items.created_by IS NULL`,
+        [
+          it.key,
+          it.name,
+          it.nameAr,
+          it.description,
+          it.type,
+          it.rarity,
+          it.value,
+          it.weight,
+          JSON.stringify(it.stats ?? {}),
+          it.use ? JSON.stringify(it.use) : null,
+          it.usable,
+          it.equippable,
+          it.slot,
+        ],
+      );
+    }
+    for (const [npcKey, stock] of Object.entries(SHOP_STOCK)) {
+      for (const [itemKey, price, qty] of stock) {
+        await client.query(
+          `INSERT INTO npc_shop_items (npc_id, item_id, price, stock)
+           SELECT n.id, i.id, $3, $4 FROM npcs n, items i WHERE n.key = $1 AND i.key = $2
+           ON CONFLICT (npc_id, item_id) DO NOTHING`,
+          [npcKey, itemKey, price, qty],
+        );
+      }
+    }
+    await client.query(
+      `INSERT INTO settings (key, value, updated_at) VALUES ('world_content_hash', $1::jsonb, now())
+       ON CONFLICT (key) DO UPDATE SET value = EXCLUDED.value, updated_at = now()`,
+      [JSON.stringify(fingerprint)],
+    );
+    await client.query('COMMIT');
+  } catch (err) {
+    await client.query('ROLLBACK').catch(() => {});
+    throw err;
+  } finally {
+    client.release();
+  }
+  log.info({ items: V3_ITEMS.length }, 'World content synced');
+  return { skipped: false, items: V3_ITEMS.length };
 }
