@@ -2,6 +2,7 @@ import { describe, it, expect } from 'vitest';
 import { CHAPTERS, ACTS, fillStory, storyStats } from '../../src/content/story/index.js';
 import { BOSS_TUNE } from '../../src/content/story/balance.js';
 import { CODEX, CODEX_CATEGORIES } from '../../src/content/lore.js';
+import { CONTENT_ITEM_BY_KEY } from '../../src/content/items.js';
 import { MONSTER_SKILLS, ENEMIES } from '../../src/engine/enemies.js';
 import { MONSTER_ARCHETYPES } from '../../src/render/sprites.js';
 import { PATHS, classStatBonus, offenseStat } from '../../src/content/classGen.js';
@@ -34,6 +35,16 @@ const LOCATIONS = new Set([
   'sunken_kingdom',
   'shadow_citadel',
   'the_abyss',
+  'frost_reach',
+  'ember_isles',
+  'emerald_wilds',
+  'clockwork_bastion',
+  'whispering_marsh',
+  'starfall_crater',
+  'mirror_realm',
+  'bone_sea',
+  'celestial_spire',
+  'the_origin',
 ]);
 const ITEMS = new Set([
   'health_potion',
@@ -48,17 +59,23 @@ const ITEMS = new Set([
   'old_map',
   'wolf_pelt',
   'crystal_rose',
+  // Gear from the v2 shops that later chapters hand out.
+  'guard_plate',
+  'starforged_blade',
+  'void_reaver',
+  ...Object.keys(CONTENT_ITEM_BY_KEY),
 ]);
 const FACTIONS = new Set(['nexus_guard', 'adventurers', 'merchants', 'unknown_order']);
 const isImage = (buf) => Buffer.isBuffer(buf) && buf.length > 1000;
 
 describe('story content', () => {
-  it('has four acts and twenty-five ordered chapters', () => {
-    expect(ACTS).toHaveLength(4);
-    expect(CHAPTERS).toHaveLength(25);
+  it('has nine acts and fifty-five ordered chapters', () => {
+    expect(ACTS).toHaveLength(9);
+    expect(CHAPTERS).toHaveLength(55);
     for (let i = 1; i < CHAPTERS.length; i++) expect(CHAPTERS[i].level).toBeGreaterThanOrEqual(CHAPTERS[i - 1].level);
-    expect(new Set(CHAPTERS.map((c) => c.key)).size).toBe(25);
-    expect(storyStats().pages).toBeGreaterThan(150);
+    expect(new Set(CHAPTERS.map((c) => c.key)).size).toBe(55);
+    expect(CHAPTERS.at(-1).level).toBe(150);
+    expect(storyStats().pages).toBeGreaterThan(300);
   });
 
   it('only references things that exist', () => {
@@ -95,7 +112,8 @@ describe('story content', () => {
     expect(storyStatus(ch, { chapter: 3, choices: {} }).blockers).toHaveLength(1);
     expect(storyStatus({ ...ch, level: 20 }, { chapter: 6, choices: {} }).pendingChoice?.key).toBe('c06');
     expect(storyStatus({ ...ch, level: 20 }, { chapter: 6, choices: { c06: 1 } }).pendingChoice).toBeNull();
-    expect(storyStatus(ch, { chapter: 25, choices: {} }).done).toBe(true);
+    expect(storyStatus(ch, { chapter: 25, choices: {} }).done).toBe(false);
+    expect(storyStatus(ch, { chapter: 55, choices: {} }).done).toBe(true);
     expect(isAtLocation(ch, CHAPTERS[0], 'city')).toBe(true);
     expect(isAtLocation(ch, CHAPTERS[2], 'wild')).toBe(false);
   });

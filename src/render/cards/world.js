@@ -2,13 +2,13 @@ import { theme, hexToRgba } from '../theme.js';
 import { icon } from '../icons.js';
 import { createCard, background, frame, panel, text, header, paragraph, hashSeed, toImage, chipRow, roundRect, portrait } from '../draw.js';
 
-const REGION_COLORS = { city: theme.cyan, wild: '#34d399', rift: '#a78bfa' };
+const REGION_COLORS = { city: theme.cyan, wild: '#34d399', rift: '#a78bfa', beyond: '#fbbf24' };
 
 /**
  * Constellation-style world map. City districts orbit Nexus City; the wilds and the rift
  * connect to the nearest node. Locked or out-of-level places are dimmed with a lock.
  */
-export async function renderMap({ locations, currentKey, visitedKeys = [], playerLevel = 1 }) {
+export async function renderMap({ locations, currentKey, visitedKeys = [], playerLevel = 1, chapter = Infinity }) {
   const W = 1000;
   const H = 760;
   const { canvas, ctx } = createCard(W, H);
@@ -74,7 +74,8 @@ export async function renderMap({ locations, currentKey, visitedKeys = [], playe
   for (const l of locations) {
     const [x, y] = P(l);
     const color = REGION_COLORS[l.region] ?? theme.cyan;
-    const locked = l.locked || l.minLevel > playerLevel;
+    const sealed = (l.requiredChapter ?? 0) > chapter;
+    const locked = l.locked || sealed || l.minLevel > playerLevel;
     const here = l.key === currentKey;
     const visited = visitedKeys.includes(l.key);
     const r = l === hub ? 16 : l.region === 'city' ? 9 : 12;
@@ -116,7 +117,7 @@ export async function renderMap({ locations, currentKey, visitedKeys = [], playe
       glowColor: '#000',
     });
     if (l.region !== 'city') {
-      const sub = locked ? `مستوى ${l.minLevel}+` : `خطر ${l.danger}`;
+      const sub = sealed ? `الفصل ${l.requiredChapter}` : locked ? `مستوى ${l.minLevel}+` : `خطر ${l.danger}`;
       text(ctx, sub, x, labelY + 20, { size: 12, weight: 600, align: 'center', color: locked ? theme.warn : theme.textMute });
     }
   }
@@ -130,6 +131,7 @@ export async function renderMap({ locations, currentKey, visitedKeys = [], playe
       { label: 'المدينة', color: theme.cyan },
       { label: 'البراري', color: '#34d399' },
       { label: 'الشق', color: '#a78bfa' },
+      { label: 'العوالم العائدة', color: '#fbbf24' },
       { label: 'مقفل', color: theme.warn, iconName: 'lock' },
     ],
     W - 54,
@@ -153,7 +155,7 @@ export async function renderLocation({ nameAr, name, description, region, danger
     ctx,
     [
       here && { label: 'أنت هنا', color: theme.gold, iconName: 'pin' },
-      { label: region === 'city' ? 'منطقة المدينة' : region === 'rift' ? 'منطقة الشق' : 'البراري', color },
+      { label: region === 'city' ? 'منطقة المدينة' : region === 'rift' ? 'منطقة الشق' : region === 'beyond' ? 'العوالم العائدة' : 'البراري', color },
       { label: `مستوى الخطر ${danger}/10`, color: danger >= 6 ? theme.danger : danger >= 3 ? theme.warn : theme.success, iconName: 'skull' },
       minLevel > 1 && { label: `يتطلب المستوى ${minLevel}`, color: theme.warn, iconName: 'lock' },
       { label: `${players} شخصية هنا`, color: theme.royalSoft, iconName: 'users' },

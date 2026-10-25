@@ -1524,37 +1524,470 @@ const MONSTERS = {
     ctx.fill();
     ctx.restore();
   },
+  knight(ctx, d, l) {
+    // A towering armoured champion: plated legs, tabard, pauldrons, great helm and a greatsword.
+    const o = '#0b1020';
+    ctx.beginPath();
+    ctx.moveTo(-60, -250);
+    ctx.quadraticCurveTo(-120, -120, -100, 0);
+    ctx.lineTo(-40, -30);
+    ctx.lineTo(-40, -250);
+    blob(ctx, shade(d, -0.35), o, 4);
+    for (const sx of [-1, 1]) {
+      rr(ctx, sx * 26 - 20, -120, 40, 122, 10);
+      blob(ctx, shade(d, sx < 0 ? -0.25 : -0.1), o, 5);
+      rr(ctx, sx * 26 - 24, -20, 48, 22, 6);
+      blob(ctx, shade(d, -0.4), o, 4);
+    }
+    rr(ctx, -62, -262, 124, 150, 22);
+    const g = ctx.createLinearGradient(0, -262, 0, -112);
+    g.addColorStop(0, shade(d, 0.25));
+    g.addColorStop(1, shade(d, -0.3));
+    blob(ctx, g, o, 6);
+    ctx.beginPath();
+    ctx.moveTo(-34, -200);
+    ctx.lineTo(34, -200);
+    ctx.lineTo(24, -60);
+    ctx.lineTo(0, -40);
+    ctx.lineTo(-24, -60);
+    ctx.closePath();
+    blob(ctx, hexToRgba(l, 0.55), o, 4);
+    star(ctx, 0, -150, 16, 4);
+    blob(ctx, l, null);
+    for (const sx of [-1, 1]) {
+      ctx.beginPath();
+      ctx.ellipse(sx * 66, -248, 40, 26, sx * 0.3, 0, TAU);
+      blob(ctx, shade(d, 0.15), o, 5);
+    }
+    limb(ctx, -66, -240, -84, -150, 26, shade(d, -0.15), o);
+    limb(ctx, 66, -240, 96, -170, 26, d, o);
+    ctx.save();
+    ctx.translate(100, -170);
+    ctx.rotate(0.35);
+    blade(ctx, { len: 230, w: 28, color: '#cbd5e1', guard: l, tip: 'point', glow: l });
+    ctx.restore();
+    rr(ctx, -38, -340, 76, 84, 20);
+    blob(ctx, shade(d, 0.1), o, 5);
+    ctx.fillStyle = '#05030c';
+    rr(ctx, -28, -312, 56, 12, 5);
+    ctx.fill();
+    eye(ctx, -12, -306, 5, l);
+    eye(ctx, 12, -306, 5, l);
+    ctx.beginPath();
+    ctx.moveTo(-6, -340);
+    ctx.quadraticCurveTo(-30, -380, -60, -372);
+    ctx.quadraticCurveTo(-30, -360, 6, -338);
+    blob(ctx, l, o, 3);
+  },
+  hydra(ctx, d, l, t) {
+    // Three necks rising from one heavy body; the middle head is the tallest.
+    const o = '#0b1020';
+    ctx.beginPath();
+    ctx.moveTo(-90, -60);
+    ctx.quadraticCurveTo(-210, -40, -230, -120 + t * 10);
+    ctx.quadraticCurveTo(-180, -90, -80, -100);
+    blob(ctx, shade(d, -0.2), o, 5);
+    for (const lx of [-70, -20, 40, 90]) {
+      rr(ctx, lx - 16, -70, 32, 72, 10);
+      blob(ctx, shade(d, -0.25), o, 4);
+    }
+    ctx.beginPath();
+    ctx.ellipse(10, -100, 130, 66, 0, 0, TAU);
+    const g = ctx.createLinearGradient(0, -166, 0, -34);
+    g.addColorStop(0, shade(d, 0.2));
+    g.addColorStop(1, shade(d, -0.35));
+    blob(ctx, g, o, 6);
+    const heads = [
+      [-70, -250, -0.5],
+      [10, -300, 0],
+      [95, -255, 0.45],
+    ];
+    for (const [hx, hy] of heads) {
+      ctx.save();
+      ctx.lineCap = 'round';
+      ctx.strokeStyle = o;
+      ctx.lineWidth = 38;
+      ctx.beginPath();
+      ctx.moveTo(hx * 0.4 + 10, -140);
+      ctx.quadraticCurveTo(hx * 1.1, (hy - 140) / 2 - 40, hx, hy + 20);
+      ctx.stroke();
+      ctx.strokeStyle = shade(d, 0.05);
+      ctx.lineWidth = 30;
+      ctx.stroke();
+      ctx.strokeStyle = hexToRgba(l, 0.5);
+      ctx.lineWidth = 6;
+      ctx.setLineDash([10, 12]);
+      ctx.stroke();
+      ctx.restore();
+    }
+    for (const [hx, hy, rot] of heads) {
+      ctx.save();
+      ctx.translate(hx, hy);
+      ctx.rotate(rot);
+      ctx.beginPath();
+      ctx.moveTo(-26, 10);
+      ctx.quadraticCurveTo(-20, -30, 20, -26);
+      ctx.lineTo(52, -8);
+      ctx.lineTo(40, 14);
+      ctx.quadraticCurveTo(0, 30, -26, 10);
+      blob(ctx, shade(d, 0.12), o, 4);
+      ctx.fillStyle = '#f8fafc';
+      for (let i = 0; i < 3; i++) {
+        ctx.beginPath();
+        ctx.moveTo(24 + i * 8, 10);
+        ctx.lineTo(28 + i * 8, 22);
+        ctx.lineTo(32 + i * 8, 10);
+        ctx.fill();
+      }
+      eye(ctx, 18, -10, 6, l);
+      ctx.restore();
+    }
+  },
 };
 export const MONSTER_ARCHETYPES = Object.keys(MONSTERS);
 
-/** Draws a monster. opts: { x, y (feet), scale, facing, archetype, palette:[dark, light], pose, boss, seed } */
-export function drawMonster(
-  ctx,
-  { x, y, scale = 1, facing = -1, archetype = 'beast', palette = ['#1e293b', '#22d3ee'], pose = 'idle', boss = false, seed = 1 },
-) {
-  const [d, l] = palette;
-  const P = POSES[pose] ?? POSES.idle;
-  const t = createRng(seed).next();
-  ctx.save();
-  ctx.translate(x, y);
-  ctx.scale(scale * facing, scale);
-  groundShadow(ctx, 150);
-  if (boss) aura(ctx, l, 1.8, -170, 300);
-  if (P.down) {
-    ctx.translate(0, -10);
-    ctx.scale(1, 0.55);
-    ctx.globalAlpha = 0.6;
-  }
-  ctx.translate(P.dx * 1.2, P.dy);
-  ctx.rotate(P.lean * 0.6);
-  (MONSTERS[archetype] ?? MONSTERS.beast)(ctx, d, l, t);
-  if (boss) {
-    // A floating crown of light marks story bosses.
+/**
+ * Where the head, body and top of each archetype sit (facing right, feet at the origin).
+ * Boss traits (horns, wings, halos...) are placed with these anchors.
+ */
+const ANCHORS = {
+  beast: { head: [150, -125, 40], body: [0, -105, 240, 100], top: -200 },
+  golem: { head: [0, -282, 34], body: [0, -175, 200, 180], top: -315 },
+  ghost: { head: [0, -235, 70], body: [0, -170, 150, 260], top: -305 },
+  serpent: { head: [165, -240, 40], body: [60, -150, 210, 200], top: -285 },
+  bird: { head: [25, -240, 36], body: [10, -170, 110, 150], top: -280 },
+  sprite: { head: [0, -245, 32], body: [0, -180, 70, 140], top: -282 },
+  insect: { head: [130, -100, 36], body: [40, -90, 170, 70], top: -165 },
+  slime: { head: [0, -120, 90], body: [0, -115, 270, 220], top: -235 },
+  humanoid: { head: [0, -252, 46], body: [0, -150, 90, 120], top: -300 },
+  eldritch: { head: [0, -160, 100], body: [0, -160, 210, 210], top: -305 },
+  dragon: { head: [195, -268, 40], body: [20, -110, 230, 160], top: -360 },
+  knight: { head: [0, -300, 40], body: [0, -185, 130, 160], top: -345 },
+  hydra: { head: [10, -300, 34], body: [10, -100, 260, 130], top: -340 },
+};
+
+function wingsTrait(ctx, kind, a, d, l, accent) {
+  const [bx, by, bw, bh] = a.body;
+  const y = by - bh * 0.3;
+  const span = bw * 0.55 + 110;
+  const o = '#0b1020';
+  for (const sx of [-1, 1]) {
     ctx.save();
-    ctx.shadowColor = '#f5c451';
-    ctx.shadowBlur = 24;
-    ctx.translate(0, archetype === 'golem' ? -360 : archetype === 'dragon' ? -380 : -330);
+    ctx.translate(bx + sx * bw * 0.12, y);
+    ctx.scale(sx, 1);
     ctx.beginPath();
+    if (kind === 'feather') {
+      ctx.moveTo(0, 0);
+      ctx.quadraticCurveTo(span * 0.5, -span * 0.75, span, -span * 0.55);
+      for (let i = 0; i < 5; i++) ctx.quadraticCurveTo(span * (0.95 - i * 0.18), -span * (0.3 - i * 0.07), span * (0.86 - i * 0.18), -span * (0.18 - i * 0.07));
+      ctx.lineTo(0, 30);
+      ctx.closePath();
+      blob(ctx, shade(accent ?? l, -0.15), o, 4);
+      ctx.strokeStyle = hexToRgba('#ffffff', 0.35);
+      ctx.lineWidth = 3;
+      for (let i = 1; i < 5; i++) {
+        ctx.beginPath();
+        ctx.moveTo(span * 0.1, -6);
+        ctx.lineTo(span * (1 - i * 0.18), -span * (0.42 - i * 0.07));
+        ctx.stroke();
+      }
+    } else if (kind === 'crystal') {
+      ctx.moveTo(0, 0);
+      ctx.lineTo(span * 0.45, -span * 0.85);
+      ctx.lineTo(span * 0.62, -span * 0.35);
+      ctx.lineTo(span * 1.02, -span * 0.6);
+      ctx.lineTo(span * 0.75, -span * 0.05);
+      ctx.lineTo(span * 0.4, span * 0.1);
+      ctx.closePath();
+      ctx.save();
+      ctx.shadowColor = accent ?? l;
+      ctx.shadowBlur = 24;
+      blob(ctx, hexToRgba(accent ?? l, 0.55), hexToRgba('#ffffff', 0.8), 3);
+      ctx.restore();
+      ctx.strokeStyle = hexToRgba('#ffffff', 0.6);
+      ctx.lineWidth = 2;
+      ctx.beginPath();
+      ctx.moveTo(span * 0.1, 0);
+      ctx.lineTo(span * 0.62, -span * 0.35);
+      ctx.lineTo(span * 0.4, span * 0.1);
+      ctx.stroke();
+    } else {
+      ctx.moveTo(0, 0);
+      ctx.lineTo(span * 0.35, -span * 0.8);
+      ctx.lineTo(span, -span * 0.55);
+      ctx.quadraticCurveTo(span * 0.85, -span * 0.25, span * 0.95, -span * 0.02);
+      ctx.quadraticCurveTo(span * 0.7, -span * 0.12, span * 0.62, span * 0.12);
+      ctx.quadraticCurveTo(span * 0.4, -span * 0.02, span * 0.3, span * 0.2);
+      ctx.closePath();
+      blob(ctx, shade(d, -0.25), o, 4);
+      ctx.strokeStyle = hexToRgba(accent ?? l, 0.55);
+      ctx.lineWidth = 3;
+      ctx.beginPath();
+      for (const [ex, ey] of [
+        [span * 0.95, -span * 0.02],
+        [span * 0.62, span * 0.12],
+        [span * 0.3, span * 0.2],
+      ]) {
+        ctx.moveTo(span * 0.35, -span * 0.8);
+        ctx.lineTo(ex, ey);
+      }
+      ctx.stroke();
+    }
+    ctx.restore();
+  }
+}
+
+function flamesTrait(ctx, a, color, t) {
+  const [bx, by, bw, bh] = a.body;
+  ctx.save();
+  ctx.globalCompositeOperation = 'lighter';
+  for (let i = 0; i < 9; i++) {
+    const fx = bx - bw * 0.55 + (i / 8) * bw * 1.1;
+    const fh = 70 + ((i * 37 + Math.round(t * 50)) % 60);
+    const base = by + bh * 0.45;
+    const g = ctx.createLinearGradient(0, base, 0, base - fh - bh * 0.6);
+    g.addColorStop(0, hexToRgba(color, 0.55));
+    g.addColorStop(1, hexToRgba(color, 0));
+    ctx.fillStyle = g;
+    ctx.beginPath();
+    ctx.moveTo(fx - 22, base);
+    ctx.quadraticCurveTo(fx - 28, base - fh * 0.6, fx + (i % 2 ? 10 : -10), base - fh - bh * 0.6);
+    ctx.quadraticCurveTo(fx + 28, base - fh * 0.6, fx + 22, base);
+    ctx.fill();
+  }
+  ctx.restore();
+}
+
+function haloTrait(ctx, kind, a, color) {
+  const [hx, hy, hr] = a.head;
+  ctx.save();
+  ctx.shadowColor = color;
+  ctx.shadowBlur = 26;
+  if (kind === 'thorns') {
+    ctx.translate(hx, hy);
+    const r = hr + 34;
+    ctx.beginPath();
+    for (let i = 0; i < 24; i++) {
+      const ang = (i / 24) * TAU;
+      const rad = i % 2 ? r : r + 22;
+      ctx.lineTo(Math.cos(ang) * rad, Math.sin(ang) * rad);
+    }
+    ctx.closePath();
+    ctx.strokeStyle = hexToRgba(color, 0.85);
+    ctx.lineWidth = 5;
+    ctx.stroke();
+  } else {
+    ctx.beginPath();
+    ctx.ellipse(hx, hy - hr - 26, hr + 18, 12, 0, 0, TAU);
+    ctx.strokeStyle = hexToRgba(color, 0.95);
+    ctx.lineWidth = 7;
+    ctx.stroke();
+  }
+  ctx.restore();
+}
+
+function hornsTrait(ctx, kind, a, color) {
+  const [hx, hy, hr] = a.head;
+  const o = '#0b1020';
+  for (const sx of [-1, 1]) {
+    ctx.save();
+    ctx.translate(hx + sx * hr * 0.55, hy - hr * 0.7);
+    ctx.scale(sx, 1);
+    ctx.beginPath();
+    if (kind === 'curved') {
+      ctx.moveTo(-8, 4);
+      ctx.quadraticCurveTo(40, -10, 44, -60);
+      ctx.quadraticCurveTo(30, -24, 10, -6);
+      ctx.closePath();
+      blob(ctx, color, o, 3);
+    } else if (kind === 'antlers') {
+      ctx.strokeStyle = o;
+      ctx.lineCap = 'round';
+      for (const [w, c] of [
+        [12, o],
+        [7, color],
+      ]) {
+        ctx.strokeStyle = c;
+        ctx.lineWidth = w;
+        ctx.beginPath();
+        ctx.moveTo(0, 0);
+        ctx.lineTo(18, -50);
+        ctx.lineTo(40, -80);
+        ctx.moveTo(18, -50);
+        ctx.lineTo(48, -48);
+        ctx.moveTo(10, -26);
+        ctx.lineTo(-6, -58);
+        ctx.moveTo(30, -66);
+        ctx.lineTo(26, -98);
+        ctx.stroke();
+      }
+    } else {
+      ctx.moveTo(-8, 4);
+      ctx.lineTo(10, -70);
+      ctx.lineTo(16, 0);
+      ctx.closePath();
+      blob(ctx, color, o, 3);
+    }
+    ctx.restore();
+  }
+}
+
+function extraEyes(ctx, n, a, color) {
+  const [hx, hy, hr] = a.head;
+  const spots = [
+    [0, -hr * 0.62, 7],
+    [-hr * 0.45, -hr * 0.4, 5],
+    [hr * 0.45, -hr * 0.4, 5],
+  ];
+  for (const [ex, ey, r] of spots.slice(0, n)) eye(ctx, hx + ex, hy + ey, r * Math.max(1, hr / 40), color);
+}
+
+function spikesTrait(ctx, a, d) {
+  const [bx, by, bw, bh] = a.body;
+  const o = '#0b1020';
+  for (let i = 0; i < 6; i++) {
+    const sx = bx - bw * 0.38 + (i / 5) * bw * 0.7;
+    const sy = by - bh * 0.48 + Math.abs(i - 2.5) * 4;
+    ctx.beginPath();
+    ctx.moveTo(sx - 12, sy + 6);
+    ctx.lineTo(sx - 2, sy - 34 - (i % 2) * 10);
+    ctx.lineTo(sx + 12, sy + 6);
+    blob(ctx, shade(d, 0.35), o, 3);
+  }
+}
+
+function markTrait(ctx, kind, a, color) {
+  const [bx, by, bw, bh] = a.body;
+  ctx.save();
+  ctx.beginPath();
+  ctx.ellipse(bx, by, bw * 0.45, bh * 0.45, 0, 0, TAU);
+  ctx.clip();
+  ctx.strokeStyle = hexToRgba(color, 0.55);
+  ctx.fillStyle = hexToRgba(color, 0.45);
+  ctx.lineWidth = 5;
+  if (kind === 'stripes') {
+    for (let i = -3; i <= 3; i++) {
+      ctx.beginPath();
+      ctx.moveTo(bx + i * bw * 0.12 - 20, by - bh * 0.5);
+      ctx.lineTo(bx + i * bw * 0.12 + 20, by + bh * 0.5);
+      ctx.stroke();
+    }
+  } else if (kind === 'spots') {
+    for (let i = 0; i < 9; i++) {
+      ctx.beginPath();
+      ctx.arc(bx + Math.cos(i * 2.4) * bw * 0.3, by + Math.sin(i * 1.7) * bh * 0.28, 6 + (i % 3) * 4, 0, TAU);
+      ctx.fill();
+    }
+  } else {
+    ctx.shadowColor = color;
+    ctx.shadowBlur = 12;
+    ctx.lineWidth = 3;
+    ctx.beginPath();
+    for (let i = 0; i < 4; i++) {
+      let x = bx - bw * 0.3 + i * bw * 0.2;
+      let y = by - bh * 0.4;
+      ctx.moveTo(x, y);
+      for (let k = 0; k < 4; k++) {
+        x += (k % 2 ? 1 : -1) * 14;
+        y += bh * 0.2;
+        ctx.lineTo(x, y);
+      }
+    }
+    ctx.stroke();
+  }
+  ctx.restore();
+}
+
+function runesTrait(ctx, a, color) {
+  const [bx, by, bw, bh] = a.body;
+  ctx.save();
+  ctx.shadowColor = color;
+  ctx.shadowBlur = 16;
+  ctx.strokeStyle = hexToRgba(color, 0.9);
+  ctx.lineWidth = 3;
+  ctx.beginPath();
+  ctx.ellipse(bx, by + bh * 0.5 + 6, bw * 0.62, 16, 0, 0, TAU);
+  ctx.stroke();
+  for (let i = 0; i < 8; i++) {
+    const ang = (i / 8) * TAU;
+    const rx = bx + Math.cos(ang) * bw * 0.62;
+    const ry = by + bh * 0.5 + 6 + Math.sin(ang) * 16;
+    ctx.beginPath();
+    ctx.moveTo(rx - 6, ry - 8);
+    ctx.lineTo(rx + 6, ry - 8);
+    ctx.moveTo(rx, ry - 14);
+    ctx.lineTo(rx, ry);
+    ctx.stroke();
+  }
+  ctx.restore();
+}
+
+function chainsTrait(ctx, a, color) {
+  const [bx, by, bw, bh] = a.body;
+  ctx.save();
+  ctx.strokeStyle = shade(color, -0.2);
+  ctx.lineWidth = 4;
+  for (let k = 0; k < 2; k++) {
+    for (let i = 0; i < 9; i++) {
+      const u = i / 8;
+      const x = bx - bw * 0.45 + u * bw * 0.9;
+      const y = by - bh * 0.3 + k * bh * 0.35 + Math.sin(u * Math.PI) * 22;
+      ctx.beginPath();
+      ctx.ellipse(x, y, 11, 7, (i % 2) * 1.2, 0, TAU);
+      ctx.stroke();
+    }
+  }
+  ctx.restore();
+}
+
+function orbsTrait(ctx, n, a, color, t) {
+  const [hx, hy, hr] = a.head;
+  const [, by, bw] = a.body;
+  const cx = hx * 0.5;
+  const cy = (hy + by) / 2;
+  const rx = Math.max(bw * 0.6, hr * 2) + 40;
+  for (let i = 0; i < n; i++) {
+    const ang = (i / n) * TAU + t * 0.8;
+    const x = cx + Math.cos(ang) * rx;
+    const y = cy + Math.sin(ang) * rx * 0.35 - 30;
+    ctx.save();
+    ctx.shadowColor = color;
+    ctx.shadowBlur = 22;
+    ctx.translate(x, y);
+    ctx.rotate(ang);
+    ctx.beginPath();
+    ctx.moveTo(0, -16);
+    ctx.lineTo(9, 0);
+    ctx.lineTo(0, 16);
+    ctx.lineTo(-9, 0);
+    ctx.closePath();
+    blob(ctx, hexToRgba(color, 0.9), '#ffffff', 2);
+    ctx.restore();
+  }
+}
+
+function crownTrait(ctx, kind, y) {
+  ctx.save();
+  ctx.shadowColor = '#f5c451';
+  ctx.shadowBlur = 24;
+  ctx.translate(0, y);
+  ctx.beginPath();
+  if (kind === 'spiked') {
+    ctx.moveTo(-44, 0);
+    for (let i = 0; i < 7; i++) {
+      ctx.lineTo(-44 + i * 14.6 + 7, i % 2 ? -26 : -50);
+      ctx.lineTo(-44 + (i + 1) * 14.6 - 3, -8);
+    }
+    ctx.lineTo(44, 0);
+  } else if (kind === 'tall') {
+    ctx.moveTo(-34, 0);
+    ctx.lineTo(-40, -60);
+    ctx.lineTo(-14, -34);
+    ctx.lineTo(0, -76);
+    ctx.lineTo(14, -34);
+    ctx.lineTo(40, -60);
+    ctx.lineTo(34, 0);
+  } else {
     ctx.moveTo(-40, 0);
     ctx.lineTo(-44, -36);
     ctx.lineTo(-20, -14);
@@ -1562,10 +1995,57 @@ export function drawMonster(
     ctx.lineTo(20, -14);
     ctx.lineTo(44, -36);
     ctx.lineTo(40, 0);
-    ctx.closePath();
-    blob(ctx, '#f5c451', '#0b1020', 4);
-    ctx.restore();
   }
+  ctx.closePath();
+  blob(ctx, '#f5c451', '#0b1020', 4);
+  ctx.beginPath();
+  ctx.arc(0, -14, 6, 0, TAU);
+  ctx.fillStyle = '#f43f5e';
+  ctx.fill();
+  ctx.restore();
+}
+
+/**
+ * Draws a monster. opts: { x, y (feet), scale, facing, archetype, palette:[dark, light], pose, boss, seed, traits }
+ * `traits` gives bosses their own look: { crown, horns, wings, eyes, orbs, halo, runes, chains, flames, spikes, mark, size, accent }.
+ */
+export function drawMonster(
+  ctx,
+  { x, y, scale = 1, facing = -1, archetype = 'beast', palette = ['#1e293b', '#22d3ee'], pose = 'idle', boss = false, seed = 1, traits = null },
+) {
+  const [d, l] = palette;
+  const P = POSES[pose] ?? POSES.idle;
+  const t = createRng(seed).next();
+  const tr = traits ?? {};
+  const a = ANCHORS[archetype] ?? ANCHORS.beast;
+  const accent = tr.accent ?? l;
+  ctx.save();
+  ctx.translate(x, y);
+  ctx.scale(scale * facing * (tr.size ?? 1), scale * (tr.size ?? 1));
+  groundShadow(ctx, 150);
+  if (boss) aura(ctx, accent, 1.8, -170, 300);
+  if (P.down) {
+    ctx.translate(0, -10);
+    ctx.scale(1, 0.55);
+    ctx.globalAlpha = 0.6;
+  }
+  ctx.translate(P.dx * 1.2, P.dy);
+  ctx.rotate(P.lean * 0.6);
+  // Behind the body.
+  if (tr.flames) flamesTrait(ctx, a, accent, t);
+  if (tr.halo === 'thorns') haloTrait(ctx, 'thorns', a, accent);
+  if (tr.wings) wingsTrait(ctx, tr.wings, a, d, l, tr.accent);
+  if (tr.runes) runesTrait(ctx, a, accent);
+  (MONSTERS[archetype] ?? MONSTERS.beast)(ctx, d, l, t);
+  // On top of the body.
+  if (tr.mark) markTrait(ctx, tr.mark, a, accent);
+  if (tr.spikes) spikesTrait(ctx, a, d);
+  if (tr.chains) chainsTrait(ctx, a, '#cbd5e1');
+  if (tr.horns) hornsTrait(ctx, tr.horns, a, shade(accent, -0.1));
+  if (tr.eyes) extraEyes(ctx, Math.min(3, tr.eyes), a, accent);
+  if (tr.halo === 'ring') haloTrait(ctx, 'ring', a, accent);
+  if (tr.orbs) orbsTrait(ctx, Math.min(6, tr.orbs), a, accent, t);
+  if (boss) crownTrait(ctx, tr.crown ?? 'classic', a.top - 30 - (tr.halo === 'ring' ? 30 : 0) - (tr.horns === 'antlers' ? 40 : 0));
   ctx.restore();
   if (P.flash) hitFlash(ctx, x, y, scale, P.flash);
 }
@@ -1584,6 +2064,7 @@ export function drawCombatant(ctx, fighter, { x, y, scale, facing, avatar = null
       pose,
       boss: look.boss,
       seed,
+      traits: look.traits ?? null,
     });
   return drawFighter(ctx, { x, y, scale, facing, avatar, classKey: look.classKey, pose, seed });
 }

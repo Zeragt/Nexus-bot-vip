@@ -4,7 +4,7 @@ import { cid } from '../core/customId.js';
 import { UserError } from '../core/errors.js';
 import { ACTS, CHAPTERS, CHAPTER_BY_KEY, fillStory } from '../content/story/index.js';
 import { CLASS_BY_KEY } from '../content/classes.js';
-import { renderStoryPage, renderChapterCover, renderChoice, renderChapterList, renderBossGallery } from '../render/index.js';
+import { renderStoryPage, renderChapterCover, renderChoice, renderChapterList } from '../render/index.js';
 import { overview, readPage, progressOf, storyStatus, isAtLocation, storyLeaders, locationInfo } from '../services/story.js';
 import { listFactions } from '../services/factions.js';
 import { requireByUser } from '../services/characters.js';
@@ -195,31 +195,10 @@ export async function listMessage(userId, actNumber = null) {
   return { files: [card(buf, 'story')], components: rows };
 }
 
-const BOSSES_PER_PAGE = 10;
-
+/** The story's bosses, now part of the hall of 100 (each with its own look). */
 export async function bossesMessage(userId, page = 1) {
-  const ch = await requireByUser(userId);
-  const progress = await progressOf(ch.id);
-  const pages = Math.ceil(CHAPTERS.length / BOSSES_PER_PAGE);
-  const p = Math.min(Math.max(1, page), pages);
-  const slice = CHAPTERS.slice((p - 1) * BOSSES_PER_PAGE, p * BOSSES_PER_PAGE);
-  const buf = await renderBossGallery({
-    bosses: slice.map((c) => ({ ...c.boss, defeated: c.index < progress.chapter, chapter: c.index + 1 })),
-    beaten: Math.min(progress.chapter, CHAPTERS.length),
-    totalBosses: CHAPTERS.length,
-    page: p,
-    pages,
-  });
-  return {
-    files: [card(buf, 'story')],
-    components: [
-      row(
-        button(cid('st', 'bosses', userId, Math.max(1, p - 1)), 'السابق', ButtonStyle.Secondary, { emoji: '◀️', disabled: p <= 1 }),
-        button(cid('st', 'bosses', userId, Math.min(pages, p + 1)), 'التالي', ButtonStyle.Secondary, { emoji: '▶️', disabled: p >= pages }),
-        button(cid('st', 'cur', userId), 'فصلي الحالي', ButtonStyle.Primary, { emoji: '📖' }),
-      ),
-    ],
-  };
+  const { hallMessage } = await import('./expansion.js');
+  return hallMessage(userId, page, 'story');
 }
 
 /** Follow-up after a story fight ends. */

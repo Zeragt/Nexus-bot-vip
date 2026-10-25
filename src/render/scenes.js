@@ -24,6 +24,16 @@ const SKIES = {
   sunken: ['#020b1a', '#0e4a5c', '#5eead4'],
   citadel: ['#030208', '#1e1030', '#f43f5e'],
   abyss: ['#000000', '#12002a', '#a855f7'],
+  frost: ['#0b1a2e', '#3b6c96', '#e0f2fe'],
+  ember: ['#1a0402', '#7c1d0a', '#fb923c'],
+  emerald: ['#021a0e', '#0b4d2c', '#86efac'],
+  clockwork: ['#140d04', '#5c3b10', '#fbbf24'],
+  marsh: ['#0b1206', '#2d3a12', '#a3a33a'],
+  starfall: ['#02030f', '#1e1b4b', '#fde68a'],
+  mirror: ['#0b0f1a', '#475569', '#f1f5f9'],
+  bones: ['#0c0a09', '#44403c', '#e7e5e4'],
+  spire: ['#1c1405', '#a16207', '#fef9c3'],
+  origin: ['#fafaf9', '#e7e5e4', '#fde68a'],
 };
 
 export const SCENE_OF_LOCATION = {
@@ -47,6 +57,16 @@ export const SCENE_OF_LOCATION = {
   sunken_kingdom: 'sunken',
   shadow_citadel: 'citadel',
   the_abyss: 'abyss',
+  frost_reach: 'frost',
+  ember_isles: 'ember',
+  emerald_wilds: 'emerald',
+  clockwork_bastion: 'clockwork',
+  whispering_marsh: 'marsh',
+  starfall_crater: 'starfall',
+  mirror_realm: 'mirror',
+  bone_sea: 'bones',
+  celestial_spire: 'spire',
+  the_origin: 'origin',
 };
 export const SCENES = Object.keys(SKIES);
 
@@ -565,6 +585,270 @@ export function drawScene(ctx, w, h, scene, { seed = 1, arena = false } = {}) {
       }
       ground(ctx, w, h, horizon, ['#12002a', '#000000'], arena ? 'rgba(168,85,247,0.25)' : null);
       particles(ctx, w, h, rng, 120, '#c084fc');
+      break;
+    }
+    case 'frost': {
+      starsLayer(ctx, w, horizon, rng, 140 * s, '#e0f2fe');
+      // Aurora ribbons.
+      for (const [col, yy] of [
+        ['#5eead4', 0.18],
+        ['#a78bfa', 0.28],
+      ]) {
+        ctx.save();
+        ctx.globalAlpha = 0.35;
+        ctx.strokeStyle = col;
+        ctx.shadowColor = col;
+        ctx.shadowBlur = 30 * s;
+        ctx.lineWidth = 18 * s;
+        ctx.beginPath();
+        ctx.moveTo(0, h * yy);
+        for (let x = 0; x <= w; x += 60 * s) ctx.lineTo(x, h * yy + Math.sin(x / (140 * s) + rng.next()) * 30 * s);
+        ctx.stroke();
+        ctx.restore();
+      }
+      ridge(ctx, w, h, rng, { base: horizon - 180 * s, amp: 110 * s, step: 150 * s, color: '#9cc3e4', sharp: true });
+      ridge(ctx, w, h, rng, { base: horizon - 70 * s, amp: 60 * s, step: 100 * s, color: '#5d8bb3', sharp: true });
+      for (let i = 0; i < 10; i++)
+        crystal(ctx, rng.range(0, w), horizon + rng.range(0, 30) * s, rng.range(30, 70) * s, rng.range(60, 160) * s, '#bae6fd', s, false);
+      ground(ctx, w, h, horizon, ['#cfe6f7', '#5d7f9c'], arena ? 'rgba(12,42,67,0.25)' : null);
+      particles(ctx, w, h, rng, 220, '#ffffff', { size: [1, 3], glow: false });
+      break;
+    }
+    case 'ember': {
+      glowAt(ctx, w * 0.35, horizon - 40 * s, 420 * s, '#f97316', 0.4);
+      for (const [x, ph] of [
+        [0.18, 220],
+        [0.48, 330],
+        [0.82, 260],
+      ]) {
+        ctx.fillStyle = '#1f0703';
+        ctx.beginPath();
+        ctx.moveTo(w * x - ph * 0.9 * s, horizon + 10 * s);
+        ctx.lineTo(w * x - 26 * s, horizon - ph * s);
+        ctx.lineTo(w * x + 26 * s, horizon - ph * s);
+        ctx.lineTo(w * x + ph * 0.9 * s, horizon + 10 * s);
+        ctx.fill();
+        glowAt(ctx, w * x, horizon - ph * s, 70 * s, '#fdba74', 0.8);
+        ctx.fillStyle = 'rgba(40,20,20,0.5)';
+        for (let k = 0; k < 4; k++) {
+          ctx.beginPath();
+          ctx.arc(w * x + rng.range(-30, 30) * s, horizon - ph * s - (40 + k * 45) * s, (24 + k * 14) * s, 0, TAU);
+          ctx.fill();
+        }
+      }
+      ground(ctx, w, h, horizon, ['#7c1d0a', '#140302'], arena ? 'rgba(251,146,60,0.25)' : null);
+      ctx.strokeStyle = 'rgba(253,186,116,0.8)';
+      ctx.lineWidth = 3 * s;
+      for (let i = 0; i < 9; i++) {
+        const y = rng.range(horizon + 30 * s, h);
+        ctx.beginPath();
+        ctx.moveTo(rng.range(0, w), y);
+        ctx.quadraticCurveTo(rng.range(0, w), y + rng.range(-20, 20) * s, rng.range(0, w), y + rng.range(-10, 10) * s);
+        ctx.stroke();
+      }
+      particles(ctx, w, h, rng, 180, '#fb923c', { size: [0.8, 2.6] });
+      break;
+    }
+    case 'emerald': {
+      for (let i = 0; i < 8; i++) glowAt(ctx, rng.range(0, w), rng.range(0, horizon), rng.range(100, 240) * s, '#4ade80', 0.14);
+      // Giant trunks.
+      for (let i = 0; i < 5; i++) {
+        const x = (i / 5) * w + rng.range(0, 80) * s;
+        const tw = rng.range(60, 120) * s;
+        ctx.fillStyle = '#1f2d14';
+        ctx.fillRect(x, 0, tw, horizon + 20 * s);
+        ctx.fillStyle = 'rgba(134,239,172,0.12)';
+        ctx.fillRect(x + tw * 0.15, 0, tw * 0.12, horizon);
+      }
+      for (const [n, sc, col] of [
+        [16, 1.1, '#0b3d22'],
+        [10, 1.7, '#052414'],
+      ]) {
+        for (let i = 0; i < n; i++) tree(ctx, rng.range(-40, w + 40), horizon + rng.range(0, 30) * s * sc, sc * s * rng.range(0.8, 1.2), col, rng);
+      }
+      ground(ctx, w, h, horizon, ['#0d4a2a', '#021008'], arena ? 'rgba(134,239,172,0.2)' : null);
+      particles(ctx, w, h, rng, 140, '#bbf7d0', { size: [1, 3.5] });
+      break;
+    }
+    case 'clockwork': {
+      glowAt(ctx, w * 0.5, horizon - 100 * s, 380 * s, '#f59e0b', 0.3);
+      const gearAt = (cx, cy, r, col) => {
+        ctx.save();
+        ctx.translate(cx, cy);
+        ctx.fillStyle = col;
+        ctx.beginPath();
+        for (let k = 0; k < 24; k++) {
+          const a = (k / 24) * TAU;
+          const rr = k % 2 ? r : r * 1.14;
+          ctx.lineTo(Math.cos(a) * rr, Math.sin(a) * rr);
+        }
+        ctx.closePath();
+        ctx.fill();
+        ctx.fillStyle = '#1a1105';
+        ctx.beginPath();
+        ctx.arc(0, 0, r * 0.35, 0, TAU);
+        ctx.fill();
+        ctx.fillStyle = col;
+        ctx.beginPath();
+        ctx.arc(0, 0, r * 0.12, 0, TAU);
+        ctx.fill();
+        ctx.restore();
+      };
+      for (let i = 0; i < 7; i++) gearAt(rng.range(0, w), rng.range(h * 0.1, horizon), rng.range(40, 130) * s, i % 2 ? '#3b2508' : '#5c3b10');
+      for (let i = 0; i < 8; i++) {
+        const x = (i / 8) * w + rng.range(0, 40) * s;
+        building(ctx, x, horizon + 10 * s, rng.range(50, 100) * s, rng.range(140, 320) * s, '#2a1a06', '#fbbf24', rng, s);
+      }
+      ground(ctx, w, h, horizon, ['#3b2508', '#0a0602'], arena ? 'rgba(251,191,36,0.22)' : null);
+      particles(ctx, w, h, rng, 70, '#fde68a', { size: [0.8, 2] });
+      break;
+    }
+    case 'marsh': {
+      for (let i = 0; i < 5; i++) {
+        ctx.save();
+        ctx.globalAlpha = 0.18;
+        ctx.fillStyle = '#d9f99d';
+        ctx.fillRect(0, horizon - rng.range(40, 200) * s, w, rng.range(20, 60) * s);
+        ctx.restore();
+      }
+      for (let i = 0; i < 14; i++) {
+        const x = rng.range(0, w);
+        const th = rng.range(100, 260) * s;
+        ctx.strokeStyle = '#1a2008';
+        ctx.lineWidth = rng.range(6, 14) * s;
+        ctx.beginPath();
+        ctx.moveTo(x, horizon + 20 * s);
+        ctx.quadraticCurveTo(x + rng.range(-40, 40) * s, horizon - th / 2, x + rng.range(-60, 60) * s, horizon - th);
+        ctx.stroke();
+      }
+      const g = ctx.createLinearGradient(0, horizon, 0, h);
+      g.addColorStop(0, '#2d3a12');
+      g.addColorStop(1, '#050803');
+      ctx.fillStyle = g;
+      ctx.fillRect(0, horizon, w, h - horizon);
+      if (arena) ground(ctx, w, h, h * 0.8, ['rgba(0,0,0,0)', 'rgba(0,0,0,0.4)'], 'rgba(217,249,157,0.12)');
+      for (let i = 0; i < 26; i++) glowAt(ctx, rng.range(0, w), rng.range(horizon - 60 * s, h), rng.range(6, 16) * s, '#bef264', 0.8);
+      break;
+    }
+    case 'starfall': {
+      starsLayer(ctx, w, horizon, rng, 320 * s, '#fef9c3');
+      ctx.save();
+      for (let i = 0; i < 7; i++) {
+        const x = rng.range(0, w);
+        const y = rng.range(0, horizon * 0.7);
+        const g = ctx.createLinearGradient(x, y, x - 180 * s, y - 90 * s);
+        g.addColorStop(0, 'rgba(254,249,195,0.95)');
+        g.addColorStop(1, 'rgba(254,249,195,0)');
+        ctx.strokeStyle = g;
+        ctx.lineWidth = 3 * s;
+        ctx.beginPath();
+        ctx.moveTo(x, y);
+        ctx.lineTo(x - 180 * s, y - 90 * s);
+        ctx.stroke();
+      }
+      ctx.restore();
+      ridge(ctx, w, h, rng, { base: horizon - 30 * s, amp: 50 * s, step: 110 * s, color: '#110f2e' });
+      ground(ctx, w, h, horizon, ['#1e1b4b', '#020208'], arena ? 'rgba(253,230,138,0.2)' : null);
+      ctx.fillStyle = '#05040f';
+      ctx.beginPath();
+      ctx.ellipse(w * 0.5, horizon + (h - horizon) * 0.5, w * 0.32, (h - horizon) * 0.22, 0, 0, TAU);
+      ctx.fill();
+      glowAt(ctx, w * 0.5, horizon + (h - horizon) * 0.5, 160 * s, '#fde68a', 0.3);
+      particles(ctx, w, h, rng, 60, '#fde68a');
+      break;
+    }
+    case 'mirror': {
+      for (let i = 0; i < 16; i++) {
+        const x = rng.range(-40, w);
+        const y = rng.range(0, horizon);
+        const mw = rng.range(40, 120) * s;
+        const mh = rng.range(120, 320) * s;
+        ctx.save();
+        ctx.translate(x, y);
+        ctx.rotate(rng.range(-0.3, 0.3));
+        const g = ctx.createLinearGradient(0, 0, mw, mh);
+        g.addColorStop(0, 'rgba(241,245,249,0.45)');
+        g.addColorStop(0.5, 'rgba(148,163,184,0.15)');
+        g.addColorStop(1, 'rgba(241,245,249,0.35)');
+        ctx.fillStyle = g;
+        ctx.fillRect(0, 0, mw, mh);
+        ctx.strokeStyle = 'rgba(255,255,255,0.5)';
+        ctx.lineWidth = 2 * s;
+        ctx.strokeRect(0, 0, mw, mh);
+        ctx.restore();
+      }
+      ground(ctx, w, h, horizon, ['#94a3b8', '#1e293b'], arena ? 'rgba(255,255,255,0.25)' : 'rgba(255,255,255,0.12)');
+      particles(ctx, w, h, rng, 80, '#ffffff', { size: [0.8, 2] });
+      break;
+    }
+    case 'bones': {
+      ctx.strokeStyle = '#d6d3d1';
+      ctx.lineCap = 'round';
+      for (let i = 0; i < 6; i++) {
+        // Giant ribs rising from the sea.
+        const x = (i / 6) * w + rng.range(0, 60) * s;
+        const rh = rng.range(160, 320) * s;
+        ctx.lineWidth = rng.range(10, 18) * s;
+        ctx.beginPath();
+        ctx.moveTo(x, horizon + 20 * s);
+        ctx.quadraticCurveTo(x + 90 * s, horizon - rh, x + 170 * s, horizon - rh * 0.6);
+        ctx.stroke();
+      }
+      ctx.lineCap = 'butt';
+      ground(ctx, w, h, horizon, ['#a8a29e', '#292524'], arena ? 'rgba(12,10,9,0.25)' : null);
+      ctx.fillStyle = 'rgba(245,245,244,0.55)';
+      for (let i = 0; i < 90; i++) {
+        ctx.beginPath();
+        ctx.ellipse(rng.range(0, w), rng.range(horizon, h), rng.range(4, 14) * s, rng.range(2, 5) * s, rng.range(0, TAU), 0, TAU);
+        ctx.fill();
+      }
+      particles(ctx, w, h, rng, 50, '#e7e5e4', { glow: false });
+      break;
+    }
+    case 'spire': {
+      glowAt(ctx, w * 0.5, h * 0.1, 360 * s, '#fef9c3', 0.8);
+      for (let i = 0; i < 12; i++) {
+        ctx.fillStyle = hexToRgba('#ffffff', rng.range(0.25, 0.6));
+        const cx = rng.range(0, w);
+        const cy = rng.range(horizon * 0.6, horizon + 40 * s);
+        for (let k = 0; k < 5; k++) {
+          ctx.beginPath();
+          ctx.arc(cx + k * 34 * s, cy + rng.range(-10, 10) * s, rng.range(24, 54) * s, 0, TAU);
+          ctx.fill();
+        }
+      }
+      ctx.save();
+      ctx.shadowColor = '#facc15';
+      ctx.shadowBlur = 40 * s;
+      const sg = ctx.createLinearGradient(0, 0, 0, horizon);
+      sg.addColorStop(0, '#fef3c7');
+      sg.addColorStop(1, '#ca8a04');
+      ctx.fillStyle = sg;
+      ctx.beginPath();
+      ctx.moveTo(w * 0.5 - 70 * s, horizon);
+      ctx.lineTo(w * 0.5 - 14 * s, 0);
+      ctx.lineTo(w * 0.5 + 14 * s, 0);
+      ctx.lineTo(w * 0.5 + 70 * s, horizon);
+      ctx.fill();
+      ctx.restore();
+      ground(ctx, w, h, horizon, ['#fde68a', '#78350f'], arena ? 'rgba(120,53,15,0.25)' : null);
+      particles(ctx, w, h, rng, 90, '#fef08a');
+      break;
+    }
+    case 'origin': {
+      ctx.save();
+      for (let i = 0; i < 40; i++) {
+        ctx.strokeStyle = hexToRgba(['#f472b6', '#38bdf8', '#facc15', '#4ade80', '#a78bfa'][i % 5], rng.range(0.25, 0.7));
+        ctx.lineWidth = rng.range(1, 3) * s;
+        ctx.beginPath();
+        ctx.moveTo(w * 0.5, horizon * 0.55);
+        ctx.quadraticCurveTo(rng.range(0, w), rng.range(0, h), rng.range(-50, w + 50), rng.range(-50, h + 50));
+        ctx.stroke();
+      }
+      ctx.restore();
+      glowAt(ctx, w * 0.5, horizon * 0.55, 200 * s, '#fde68a', 0.85);
+      ground(ctx, w, h, horizon, ['#f5f5f4', '#d6d3d1'], arena ? 'rgba(68,64,60,0.18)' : null);
+      particles(ctx, w, h, rng, 70, '#fde68a', { size: [1, 2.5] });
       break;
     }
     case 'gate':

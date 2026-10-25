@@ -24,7 +24,7 @@ async function chapterChoices(userId, q) {
 export const storyCommand = {
   data: new SlashCommandBuilder()
     .setName('story')
-    .setDescription('القصة الكبرى: 25 فصلاً، زعماء، وقرارات مصيرية')
+    .setDescription('القصة الكبرى: 55 فصلاً في 9 أجزاء، زعماء، وقرارات مصيرية')
     .addSubcommand((s) => s.setName('current').setDescription('فصلك الحالي وزعيمه'))
     .addSubcommand((s) =>
       s
@@ -37,7 +37,7 @@ export const storyCommand = {
       s
         .setName('chapters')
         .setDescription('كل الفصول وتقدمك فيها')
-        .addIntegerOption((o) => o.setName('act').setDescription('الجزء').setMinValue(1).setMaxValue(4)),
+        .addIntegerOption((o) => o.setName('act').setDescription('الجزء').setMinValue(1).setMaxValue(9)),
     )
     .addSubcommand((s) => s.setName('fight').setDescription('واجه زعيم فصلك الحالي'))
     .addSubcommand((s) => s.setName('bosses').setDescription('قاعة الزعماء الذين هزمتهم')),
@@ -106,9 +106,9 @@ export const codexCommand = {
     if (f.name === 'region') {
       const q = String(f.value ?? '');
       return (await listLocations())
-        .filter((l) => ENEMIES[l.key] && (!q || l.name_ar.includes(q) || l.key.includes(q)))
+        .filter((l) => ENEMIES[l.key] && (!q || l.nameAr.includes(q) || l.key.includes(q)))
         .slice(0, 25)
-        .map((l) => ({ name: l.name_ar, value: l.key }));
+        .map((l) => ({ name: l.nameAr, value: l.key }));
     }
     return codexAutocomplete(i.user.id, f.value);
   },

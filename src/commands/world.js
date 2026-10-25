@@ -11,6 +11,7 @@ import { mapMessage, locationMessage, locationCard, npcMessage, shopMessage } fr
 import { renderList, renderLore, renderNotice } from '../render/index.js';
 import { theme } from '../render/theme.js';
 import { fmt } from '../utils/format.js';
+import { describeContracts } from '../services/progress.js';
 
 async function locationChoices(q) {
   const locs = await listLocations();
@@ -18,7 +19,10 @@ async function locationChoices(q) {
   return locs
     .filter((l) => !s || l.nameAr.includes(q) || l.name.toLowerCase().includes(s) || l.key.includes(s))
     .slice(0, 25)
-    .map((l) => ({ name: `${l.nameAr} — ${l.name}${l.minLevel > 1 ? ` (مستوى ${l.minLevel}+)` : ''}`, value: l.key }));
+    .map((l) => ({
+      name: `${l.nameAr} — ${l.name}${l.minLevel > 1 ? ` (مستوى ${l.minLevel}+)` : ''}${l.requiredChapter ? ` • فصل ${l.requiredChapter}+` : ''}`.slice(0, 100),
+      value: l.key,
+    }));
 }
 
 /** Arrival card after travelling. */
@@ -28,10 +32,15 @@ export async function arrivalMessage(res, uid) {
   if (res.cost) lines.push(`استهلكت الرحلة ${res.cost} طاقة.`);
   if (res.firstVisit) lines.push('زيارتك الأولى لهذا المكان!');
   if (res.unlocked.length) lines.push(`إنجاز جديد: ${res.unlocked.map((a) => a.name_ar).join('، ')}`);
-  const btns = [button(cid('tv', 'look', uid, res.to.key), 'استكشف المكان', ButtonStyle.Primary, { emoji: '👁️' })];
+  const btns = [
+    button(cid('tv', 'look', uid, res.to.key), 'تفاصيل المكان', ButtonStyle.Secondary, { emoji: '👁️' }),
+    button(cid('rg', 'view', uid, res.to.key), 'محتوى المنطقة', ButtonStyle.Primary, { emoji: '🗺️' }),
+    button(cid('rg', 'explore', uid), 'استكشف', ButtonStyle.Success, { emoji: '🔦' }),
+  ];
   if (res.to.danger > 0) btns.push(button(cid('cb', 'hunt', uid), 'ابحث عن قتال', ButtonStyle.Danger, { emoji: '⚔️' }));
+  const notes = describeContracts(res.contracts);
   return {
-    content: `🧭 **${res.character.name}** وصل إلى **${res.to.nameAr}**${lines.length ? `\n-# ${lines.join(' • ')}` : ''}`,
+    content: `🧭 **${res.character.name}** وصل إلى **${res.to.nameAr}**${lines.length ? `\n-# ${lines.join(' • ')}` : ''}${notes ? `\n${notes}` : ''}`,
     files: [card(buf, 'arrival')],
     components: [row(...btns)],
   };

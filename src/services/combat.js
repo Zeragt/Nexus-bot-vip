@@ -2,13 +2,16 @@ import crypto from 'node:crypto';
 import { getPool, tx } from '../db/pool.js';
 import { UserError } from '../core/errors.js';
 import { app } from '../core/context.js';
-import { combat as C } from '../config/game.js';
+import { combat as C, defeat as DEFEAT, RARITY_LABELS } from '../config/game.js';
+import { xpLoss, pickDrop } from '../engine/defeat.js';
+import { track, describeContracts, mergeTracks } from './progress.js';
+import { getSetting } from './settings.js';
 import { duration } from '../utils/format.js';
 import { createFighter, createBattle, performAction, timeoutTurn, chooseAiAction, passivesFromSkills, CombatError, activeFighter } from '../engine/combat.js';
 import { enemiesFor, spawnEnemy, rollLoot } from '../engine/enemies.js';
 import { defaultRng } from '../engine/rng.js';
 import { requireByUser, loadCharacter, saveVitals, spendEnergy } from './characters.js';
-import { activeStatusEffects, removeItem } from './inventory.js';
+import { activeStatusEffects, removeItem, addItem } from './inventory.js';
 import { grantRewards, describeRewards } from './rewards.js';
 import { recordProgress } from './quests.js';
 import { audit } from './audit.js';
@@ -211,10 +214,17 @@ export async function act(sessionId, userId, action, rng = defaultRng) {
   });
 }
 
-/** Ends a fight: persists HP/energy, consumes used items, pays rewards, releases locks. */
+/** Ends a fight: persists HP/energy, consumes used items, pays rewards, applies defeat costs, releases locks. */
 async function finalize(db, row, state, rng = defaultRng) {
   const winnerFighter = state.winner != null ? state.fighters[state.winner] : null;
-  const summary = { rewards: null, loot: [], text: null };
+  const loser = state.winner != null ? state.fighters[1 - state.winner] : null;
+  const decided = state.winner != null && state.reason !== 'flee';
+  const summary = { rewards: null, loot: [], text: null, defeat: null, contracts: [] };
+  const note = async (fighter, result) => {
+    const text = describeContracts(result);
+    if (text && fighter?.userId) summary.contracts.push({ userId: fighter.userId, text });
+  };
+
   for (const f of state.fighters) {
     if (typeof f.id !== 'number') continue;
     const ch = await loadCharacter(db, f.id, { lock: true });
@@ -224,19 +234,32 @@ async function finalize(db, row, state, rng = defaultRng) {
       const item = (await db.query('SELECT id FROM items WHERE key = $1', [key])).rows[0];
       if (item && n > 0) await removeItem(db, f.id, item.id, n).catch(() => {});
     }
-    if (state.winner == null || state.reason === 'flee') continue;
+    if (!decided) continue;
     const won = winnerFighter?.id === f.id;
     await db.query(`UPDATE characters SET ${won ? 'combat_wins = combat_wins + 1' : 'combat_losses = combat_losses + 1'} WHERE id = $1`, [f.id]);
   }
 
-  const loser = state.winner != null ? state.fighters[1 - state.winner] : null;
+  // What the loser pays: XP always, and in a duel one bag item may go to the winner.
+  if (decided && loser && typeof loser.id === 'number') {
+    summary.defeat = await applyDefeat(db, row, loser, row.kind === 'pvp' ? winnerFighter : null, rng);
+  }
+
   if (state.story) {
     // Story bosses pay chapter rewards instead of hunt loot; losses only count an attempt.
     const { onStoryFight } = await import('./story.js');
     const player = state.fighters.find((f) => typeof f.id === 'number');
-    summary.story = await onStoryFight(db, state, player, winnerFighter === player && state.reason !== 'flee');
+    const won = winnerFighter === player && state.reason !== 'flee';
+    summary.story = await onStoryFight(db, state, player, won);
     summary.rewards = summary.story?.rewards ?? null;
-  } else if (winnerFighter && typeof winnerFighter.id === 'number' && state.reason !== 'flee') {
+    if (won) await note(player, await track(db, player.id, 'story_boss', { key: state.story.chapter }));
+  } else if (state.worldBoss) {
+    const { onWorldBossFight } = await import('./bosses.js');
+    const player = state.fighters.find((f) => typeof f.id === 'number');
+    const won = winnerFighter === player && state.reason !== 'flee';
+    summary.boss = await onWorldBossFight(db, state, player, won, rng);
+    summary.rewards = summary.boss?.rewards ?? null;
+    if (won) await note(player, await track(db, player.id, 'boss', { key: state.worldBoss.key, location: state.locationKey }));
+  } else if (winnerFighter && typeof winnerFighter.id === 'number' && decided) {
     if (row.kind === 'pve') {
       const enemyKey = loser.id.replace('enemy:', '');
       const locKey = state.locationKey ?? row.state?.locationKey;
@@ -255,14 +278,21 @@ async function finalize(db, row, state, rng = defaultRng) {
         note: `غنيمة: ${loser.name}`,
       });
       await recordProgress(db, winnerFighter.id, 'defeat', locKey);
+      await bumpRegionStat(db, winnerFighter.id, locKey, 'hunted');
+      await note(winnerFighter, await track(db, winnerFighter.id, 'defeat', { key: enemyKey, location: locKey }));
     } else {
       summary.rewards = await pvpRewards(db, winnerFighter, loser);
+      await db.query('UPDATE characters SET pvp_wins = pvp_wins + 1 WHERE id = $1', [winnerFighter.id]);
+      await db.query('UPDATE characters SET pvp_losses = pvp_losses + 1 WHERE id = $1', [loser.id]);
+      await note(winnerFighter, mergeTracks(await track(db, winnerFighter.id, 'pvp_win'), await track(db, winnerFighter.id, 'pvp_fight')));
+      await note(loser, await track(db, loser.id, 'pvp_fight'));
     }
   }
   if (summary.rewards) summary.text = describeRewards(summary.rewards);
 
   const winnerId = winnerFighter && typeof winnerFighter.id === 'number' ? winnerFighter.id : null;
   state.rewardText = summary.text;
+  state.penaltyText = summary.defeat ? describeDefeat(summary.defeat) : null;
   if (summary.story) state.storyResult = { won: summary.story.won, chapter: summary.story.chapter.key, replay: Boolean(summary.story.replay) };
   await db.query(`UPDATE combat_sessions SET state = $2, status = 'finished', winner_id = $3, finished_at = now(), turn_deadline = NULL WHERE id = $1`, [
     row.id,
@@ -284,6 +314,69 @@ async function finalize(db, row, state, rng = defaultRng) {
   );
   const fresh = (await db.query('SELECT * FROM combat_sessions WHERE id = $1', [row.id])).rows[0];
   return { session: mapSession(fresh), finished: true, summary };
+}
+
+async function bumpRegionStat(db, characterId, locationKey, column) {
+  if (!locationKey || !['explored', 'gathered', 'hunted'].includes(column)) return;
+  await db.query(
+    `INSERT INTO character_region_stats (character_id, location_key, ${column}) VALUES ($1, $2, 1)
+     ON CONFLICT (character_id, location_key) DO UPDATE SET ${column} = character_region_stats.${column} + 1`,
+    [characterId, locationKey],
+  );
+}
+export { bumpRegionStat };
+
+/**
+ * The price of losing. XP comes out of the current level's progress (never a level), 30% in a
+ * duel and 10% against monsters. In a duel the loser's bag also rolls for one dropped item,
+ * which goes to the winner; a Soul Ward in the bag breaks instead.
+ */
+async function applyDefeat(db, row, loser, winner, rng) {
+  const kind = winner ? 'pvp' : 'pve';
+  const cur = (await db.query('SELECT xp FROM characters WHERE id = $1 FOR UPDATE', [loser.id])).rows[0];
+  const xpLost = cur ? xpLoss(Number(cur.xp), kind) : 0;
+  if (xpLost > 0) await db.query('UPDATE characters SET xp = GREATEST(0, xp - $2) WHERE id = $1', [loser.id, xpLost]);
+  const out = { kind, loser: loser.name, winner: winner?.name ?? null, xpLost, item: null, warded: false };
+  if (winner && typeof winner.id === 'number' && (await getSetting('pvp_item_drops', true))) {
+    const bag = (
+      await db.query(
+        `SELECT ii.item_id, ii.quantity, i.key, i.name_ar, i.rarity, i.tradeable, i.type FROM inventory_items ii JOIN items i ON i.id = ii.item_id
+         WHERE ii.character_id = $1 ORDER BY ii.item_id`,
+        [loser.id],
+      )
+    ).rows.map((r) => ({ itemId: r.item_id, key: r.key, name: r.name_ar, rarity: r.rarity, quantity: r.quantity, tradeable: r.tradeable, type: r.type }));
+    const ward = bag.find((s) => s.key === DEFEAT.wardItemKey);
+    const drop = pickDrop(
+      bag.filter((s) => s.key !== DEFEAT.wardItemKey),
+      rng,
+    );
+    if (drop && ward) {
+      await removeItem(db, loser.id, ward.itemId, 1);
+      out.warded = true;
+      out.item = { name: drop.name, rarity: drop.rarity };
+    } else if (drop) {
+      await removeItem(db, loser.id, drop.itemId, 1);
+      await addItem(db, winner.id, drop.itemId, 1);
+      out.item = { name: drop.name, rarity: drop.rarity };
+    }
+    await db.query('INSERT INTO pvp_drops (session_id, loser_id, winner_id, item_id, xp_lost, warded) VALUES ($1,$2,$3,$4,$5,$6)', [
+      row.id,
+      loser.id,
+      winner.id,
+      out.warded ? null : (drop?.itemId ?? null),
+      xpLost,
+      out.warded,
+    ]);
+  }
+  return out;
+}
+
+export function describeDefeat(d) {
+  const parts = [];
+  if (d.xpLost) parts.push(`${d.loser}: -${d.xpLost} XP`);
+  if (d.item && d.warded) parts.push(`تحطمت تميمة الروح وحمت «${d.item.name}»`);
+  else if (d.item) parts.push(`سقط «${d.item.name}» (${RARITY_LABELS[d.item.rarity] ?? d.item.rarity}) لصالح ${d.winner}`);
+  return parts.join('  •  ') || null;
 }
 
 /**
@@ -318,6 +411,7 @@ export async function forfeit(userId) {
     // Allow surrender out of turn: swap the active side for the forfeit action.
     return tx(async (db) => {
       const row = (await db.query('SELECT * FROM combat_sessions WHERE id = $1 FOR UPDATE', [sid])).rows[0];
+      if (!row || row.status !== 'active' || row.state?.finished) throw new UserError('هذا القتال انتهى');
       const state = structuredClone(row.state);
       state.active = state.fighters.findIndex((f) => f.userId === userId);
       return finalize(db, row, performAction(state, { type: 'forfeit' }));

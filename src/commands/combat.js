@@ -9,6 +9,7 @@ import { requireByUser } from '../services/characters.js';
 import { levelUpCard } from '../views/character.js';
 import { card } from '../core/ui.js';
 import { storyResultMessage } from '../views/story.js';
+import { bossResultText } from '../views/expansion.js';
 
 /** Sends a fight update and remembers where the live message is (for turn timeouts). */
 export async function postCombat(i, result, { update = false } = {}) {
@@ -18,8 +19,23 @@ export async function postCombat(i, result, { update = false } = {}) {
   if (result.finished) {
     await announceLevelUps(i, result);
     await announceStory(i, result);
+    await announceBoss(i, result);
+    await announceContracts(i, result.summary?.contracts);
   }
   return msg;
+}
+
+/** Region boss outcome: loot, first-kill bonus, and any secret drop. */
+async function announceBoss(i, result) {
+  const text = bossResultText(result.summary?.boss);
+  if (text) await i.followUp({ content: text }).catch(() => {});
+}
+
+/** Finished daily/weekly contracts, mentioned to their owner. */
+export async function announceContracts(i, notes) {
+  for (const n of notes ?? []) {
+    await i.followUp({ content: `<@${n.userId}>\n${n.text}`, allowedMentions: { users: [n.userId] } }).catch(() => {});
+  }
 }
 
 /** After a story boss falls (or wins), follow up with the chapter's ending or a retry prompt. */
@@ -102,6 +118,10 @@ export const combatComponent = {
       const res = await respond(sessionId, uid, action === 'acc');
       if (res.declined) return i.editReply({ ...ok('رُفض التحدي.'), content: null, files: [], attachments: [], components: [] });
       return postCombat(i, { session: res.session, finished: false }, { update: true });
+    }
+    if (action === 'surrender') {
+      await i.deferUpdate();
+      return postCombat(i, await forfeit(uid), { update: true });
     }
     let move;
     if (ACTIONS[action]) move = { type: ACTIONS[action] };

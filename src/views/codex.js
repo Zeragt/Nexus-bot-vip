@@ -163,7 +163,7 @@ export async function bestiaryMessage(userId, locationKey = 'forest') {
   const loc = locs.find((l) => l.key === locationKey);
   const names = await itemNames();
   const buf = await renderBestiary({
-    location: { key: locationKey, nameAr: loc?.name_ar ?? locationKey, danger: loc?.danger_level ?? 0 },
+    location: { key: locationKey, nameAr: loc?.nameAr ?? locationKey, danger: loc?.danger ?? 0 },
     monsters: pool.map((m) => ({
       ...m,
       skills: (m.skills ?? []).map((k) => MONSTER_SKILLS[k]?.name ?? k),
@@ -178,9 +178,9 @@ export async function bestiaryMessage(userId, locationKey = 'forest') {
           cid('cx', 'beasts', userId),
           'اختر منطقة',
           locs.map((l) => ({
-            label: l.name_ar,
+            label: l.nameAr,
             value: l.key,
-            description: `خطر ${l.danger_level} • ${ENEMIES[l.key].length} مخلوقات`,
+            description: `خطر ${l.danger} • ${ENEMIES[l.key].length} مخلوقات`,
             default: l.key === locationKey,
           })),
         ),

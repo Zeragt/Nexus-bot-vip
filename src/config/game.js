@@ -11,7 +11,7 @@ export const STAT_LABELS = {
   luck: 'الحظ',
 };
 
-export const RARITIES = ['common', 'uncommon', 'rare', 'epic', 'legendary', 'mythic'];
+export const RARITIES = ['common', 'uncommon', 'rare', 'epic', 'legendary', 'mythic', 'secret'];
 export const RARITY_LABELS = {
   common: 'عادي',
   uncommon: 'غير شائع',
@@ -19,6 +19,7 @@ export const RARITY_LABELS = {
   epic: 'ملحمي',
   legendary: 'أسطوري',
   mythic: 'خرافي',
+  secret: 'سري',
 };
 
 export const ITEM_TYPES = ['weapon', 'armor', 'accessory', 'consumable', 'quest', 'material', 'misc'];
@@ -46,7 +47,7 @@ export const DIFFICULTY_LABELS = { easy: 'سهلة', normal: 'عادية', hard:
 export const DIFFICULTY_STARS = { easy: 1, normal: 2, hard: 3, elite: 4, legendary: 5 };
 
 export const progression = {
-  maxLevel: 100,
+  maxLevel: 150,
   /** XP needed to go from `level` to `level + 1`. */
   xpToNext: (level) => Math.round(100 * Math.pow(level, 1.5)),
   statPointsPerLevel: 3,
@@ -98,6 +99,52 @@ export const combat = {
   pvpSameOpponentCooldownHours: 6,
   huntEnergyCost: 10,
   huntCooldownSeconds: 120,
+};
+
+/**
+ * What a defeat costs. Only player-vs-player challenges can take items, and the winner
+ * receives the item. XP loss never removes a level: it comes out of the current level's bar.
+ */
+export const defeat = {
+  pvpXpLoss: 0.3,
+  pveXpLoss: 0.1,
+  /** Chance that an item of this rarity is the one lost (rolled per stack in random order). */
+  dropChance: {
+    common: 0.5,
+    uncommon: 0.3,
+    rare: 0.15,
+    epic: 0.05,
+    legendary: 0.01,
+    mythic: 0.001,
+    secret: 0.0001,
+  },
+  /** A ward in the bag is used up instead of losing an item. */
+  wardItemKey: 'soul_ward',
+};
+
+/** Daily and weekly contracts. The day turns over at midnight Baghdad time (UTC+3). */
+export const dailies = {
+  resetOffsetHours: 3,
+  dailySlots: 5,
+  weeklySlots: 3,
+  freeRerolls: 1,
+  rerollCost: (n) => 150 * n,
+  /** Bonus for clearing every daily of the day, growing with the streak. */
+  allClearBonus: (streak) => ({ xp: 120 + Math.min(streak, 14) * 40, nx: 150 + Math.min(streak, 14) * 50 }),
+  streakChestEvery: 7,
+};
+
+export const bosses = {
+  energyCost: 20,
+  cooldownHours: 6,
+  minHpRatio: 0.5,
+};
+
+export const exploration = {
+  exploreEnergy: 8,
+  exploreCooldownSeconds: 45,
+  gatherEnergy: 6,
+  gatherCooldownSeconds: 30,
 };
 
 export const cooldowns = {

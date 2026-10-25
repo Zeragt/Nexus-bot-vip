@@ -6,6 +6,7 @@ import { requireByUser, loadCharacter } from './characters.js';
 import { addItem, removeItem, carriedWeight, capacityOf } from './inventory.js';
 import { checkAchievements } from './achievements.js';
 import { audit } from './audit.js';
+import { track } from './progress.js';
 
 const TRADE_MINUTES = 10;
 
@@ -194,6 +195,8 @@ export async function confirm(tradeId, userId) {
     await db.query('UPDATE characters SET trades_completed = trades_completed + 1 WHERE id = ANY($1::int[])', [[A.id, B.id]]);
     await checkAchievements(db, A.id);
     await checkAchievements(db, B.id);
+    await track(db, A.id, 'trade');
+    await track(db, B.id, 'trade');
     await audit(
       { actorId: userId, action: 'trade_completed', targetType: 'trade', targetId: tradeId, after: { a: A.code, b: B.code, offers: trade.offers } },
       db,

@@ -1,6 +1,7 @@
 import crypto from 'node:crypto';
 import { getPool, tx } from '../db/pool.js';
 import { cooldowns } from '../config/game.js';
+import { track } from './progress.js';
 import { grantXp } from './characters.js';
 import { getSetting } from './settings.js';
 import { locationByChannelName } from './world.js';
@@ -62,11 +63,16 @@ export async function handleRpMessage(message, now = new Date()) {
       [ch.id, day, amount, now, hash],
     );
     const res = await grantXp(db, ch.id, amount);
+    await track(db, ch.id, 'rp');
     return { characterId: ch.id, xp: res.gained, levelsGained: res.levelsGained, level: res.level };
   });
 }
 
 export async function rpStats(characterId) {
-  const { rows } = await getPool().query('SELECT * FROM rp_activity WHERE character_id = $1 AND day = CURRENT_DATE', [characterId]);
+  // Same UTC day key as handleRpMessage (the database's CURRENT_DATE may use another timezone).
+  const { rows } = await getPool().query('SELECT * FROM rp_activity WHERE character_id = $1 AND day = $2', [
+    characterId,
+    new Date().toISOString().slice(0, 10),
+  ]);
   return rows[0] ?? { messages: 0, xp_awarded: 0 };
 }

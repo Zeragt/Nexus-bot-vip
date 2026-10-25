@@ -122,7 +122,7 @@ export const adminCommand = {
         .addSubcommand((s) =>
           reasonOpt(
             userOpt(s.setName('story').setDescription('اضبط تقدم اللاعب في القصة')).addIntegerOption((o) =>
-              o.setName('chapters').setDescription('عدد الفصول المكتملة (0 يعيد القصة من البداية)').setRequired(true).setMinValue(0).setMaxValue(25),
+              o.setName('chapters').setDescription('عدد الفصول المكتملة (0 يعيد القصة من البداية)').setRequired(true).setMinValue(0).setMaxValue(55),
             ),
           ),
         )
@@ -504,7 +504,7 @@ export const gmCommand = {
             )
             .addIntegerOption((o) => o.setName('xp').setDescription('XP').setMinValue(0).setMaxValue(100000))
             .addIntegerOption((o) => o.setName('nx').setDescription('NX').setMinValue(0).setMaxValue(1000000))
-            .addIntegerOption((o) => o.setName('min_level').setDescription('أقل مستوى').setMinValue(1).setMaxValue(100))
+            .addIntegerOption((o) => o.setName('min_level').setDescription('أقل مستوى').setMinValue(1).setMaxValue(150))
             .addBooleanOption((o) => o.setName('review').setDescription('تحتاج مراجعة إدارية'))
             .addBooleanOption((o) => o.setName('repeatable').setDescription('قابلة للتكرار'))
             .addStringOption((o) => o.setName('location').setDescription('المكان').setAutocomplete(true))
@@ -642,7 +642,7 @@ export const gmCommand = {
             .addStringOption((o) => o.setName('channel').setDescription('اسم قناة الرول بلاي المرتبطة'))
             .addNumberOption((o) => o.setName('x').setDescription('موقع الخريطة X (0-1)').setMinValue(0).setMaxValue(1))
             .addNumberOption((o) => o.setName('y').setDescription('موقع الخريطة Y (0-1)').setMinValue(0).setMaxValue(1))
-            .addIntegerOption((o) => o.setName('danger').setDescription('الخطورة 0-5').setMinValue(0).setMaxValue(5))
+            .addIntegerOption((o) => o.setName('danger').setDescription('الخطورة 0-10').setMinValue(0).setMaxValue(10))
             .addIntegerOption((o) => o.setName('min_level').setDescription('أقل مستوى').setMinValue(1)),
         )
         .addSubcommand((s) =>
@@ -653,7 +653,7 @@ export const gmCommand = {
             .addBooleanOption((o) => o.setName('locked').setDescription('مقفل'))
             .addBooleanOption((o) => o.setName('staff_only').setDescription('للطاقم فقط'))
             .addIntegerOption((o) => o.setName('min_level').setDescription('أقل مستوى').setMinValue(1))
-            .addIntegerOption((o) => o.setName('danger').setDescription('الخطورة').setMinValue(0).setMaxValue(5)),
+            .addIntegerOption((o) => o.setName('danger').setDescription('الخطورة').setMinValue(0).setMaxValue(10)),
         )
         .addSubcommand((s) =>
           s
@@ -692,7 +692,10 @@ export const gmCommand = {
     if (f.name === 'item' || f.name === 'reward_item')
       return (await searchItems(q)).map((it) => ({ name: `${it.nameAr} (${it.key})`.slice(0, 100), value: it.key }));
     if (f.name === 'location')
-      return (await listLocations()).filter((l) => !q || l.nameAr.includes(q) || l.key.includes(q)).map((l) => ({ name: l.nameAr, value: l.key }));
+      return (await listLocations())
+        .filter((l) => !q || l.nameAr.includes(q) || l.key.includes(q))
+        .slice(0, 25)
+        .map((l) => ({ name: l.nameAr, value: l.key }));
     if (f.name === 'npc') return npcAutocomplete(q);
     if (f.name === 'quest') return questAutocomplete(q, { scope: 'all' });
     if (f.name === 'event') return eventAutocomplete(q);

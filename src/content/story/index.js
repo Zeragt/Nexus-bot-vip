@@ -2,8 +2,13 @@ import act1 from './act1.js';
 import act2 from './act2.js';
 import act3 from './act3.js';
 import act4 from './act4.js';
+import act5 from './act5.js';
+import act6 from './act6.js';
+import act7 from './act7.js';
+import act8 from './act8.js';
+import act9 from './act9.js';
 
-export const ACTS = [act1, act2, act3, act4];
+export const ACTS = [act1, act2, act3, act4, act5, act6, act7, act8, act9];
 
 /** Flat, ordered list of chapters; `index` is the 0-based position, `act` the parent act. */
 export const CHAPTERS = ACTS.flatMap((act, a) =>

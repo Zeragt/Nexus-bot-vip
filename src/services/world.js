@@ -6,6 +6,7 @@ import { cooldowns as CD } from '../config/game.js';
 import { duration } from '../utils/format.js';
 import { requireByUser, recordVisit, loadCharacter, spendEnergy } from './characters.js';
 import { checkAchievements } from './achievements.js';
+import { chaptersDone, track } from './progress.js';
 import { audit } from './audit.js';
 
 export function mapLocation(r) {
@@ -25,6 +26,7 @@ export function mapLocation(r) {
     requiresPermission: r.requires_permission,
     locked: r.locked,
     isStart: r.is_start,
+    requiredChapter: r.required_chapter ?? 0,
   };
 }
 
@@ -68,6 +70,10 @@ export async function travelBlockers(ch, loc, roles, db = getPool()) {
   if (loc.locked && !staff) reasons.push('هذه المنطقة مغلقة حالياً بأمر الإدارة');
   if (loc.requiresPermission && !staff) reasons.push('تحتاج إذناً خاصاً من الإدارة لدخول هذه المنطقة');
   if (ch.level < loc.minLevel) reasons.push(`تحتاج إلى المستوى ${loc.minLevel} على الأقل`);
+  if (loc.requiredChapter > 0 && !staff) {
+    const done = await chaptersDone(db, ch.id);
+    if (done < loc.requiredChapter) reasons.push(`مختومة بالقصة: أكمل ${loc.requiredChapter} فصلاً من /story لتنفتح (أكملت ${done})`);
+  }
   if (loc.requiredQuestId) {
     const done = await db.query("SELECT 1 FROM character_quests WHERE character_id = $1 AND quest_id = $2 AND status = 'completed'", [
       ch.id,
@@ -99,8 +105,9 @@ export async function travel(userId, destination, roles) {
     const firstVisit = !(await db.query('SELECT 1 FROM character_locations WHERE character_id = $1 AND location_id = $2', [ch.id, loc.id])).rowCount;
     await db.query('UPDATE characters SET location_id = $2, updated_at = now() WHERE id = $1', [ch.id, loc.id]);
     await recordVisit(db, ch.id, loc.id);
+    const contracts = await track(db, ch.id, 'visit', { location: loc.key });
     const unlocked = await checkAchievements(db, ch.id);
-    return { from, to: loc, cost, firstVisit, unlocked, character: await loadCharacter(db, ch.id) };
+    return { from, to: loc, cost, firstVisit, unlocked, contracts, character: await loadCharacter(db, ch.id) };
   });
   await app.cooldowns.set(`u:${userId}`, 'travel', CD.travelSeconds * 1000, { persist: false });
   return result;

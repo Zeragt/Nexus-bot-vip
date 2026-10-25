@@ -135,7 +135,7 @@ function impact(ctx, x, y, color, r = 70) {
  * action, floating damage numbers, HUDs and the battle log.
  * `view` = { state, avatars: [img|null, img|null], deadline, kind, rewards, locationKey }
  */
-export async function renderCombat({ state, avatars = [null, null], deadline = null, kind = 'pvp', rewards = null, locationKey = null }) {
+export async function renderCombat({ state, avatars = [null, null], deadline = null, kind = 'pvp', rewards = null, penalty = null, locationKey = null }) {
   const W = 1280;
   const H = 720;
   const { canvas, ctx } = createCard(W, H);
@@ -265,7 +265,7 @@ export async function renderCombat({ state, avatars = [null, null], deadline = n
 
   if (state.finished) {
     ctx.save();
-    roundRect(ctx, cx - 340, H / 2 - 70, 680, 120, 22);
+    roundRect(ctx, cx - 340, H / 2 - 70, 680, penalty ? 150 : 120, 22);
     const g = ctx.createLinearGradient(cx - 340, 0, cx + 340, 0);
     g.addColorStop(0, 'rgba(10,14,40,0.94)');
     g.addColorStop(0.5, 'rgba(48,34,8,0.94)');
@@ -289,6 +289,7 @@ export async function renderCombat({ state, avatars = [null, null], deadline = n
     });
     const sub = [REASONS[state.reason], rewards].filter(Boolean).join('  •  ');
     text(ctx, sub, cx, H / 2 + 16, { size: 18, weight: 600, align: 'center', color: theme.text, maxWidth: 620 });
+    if (penalty) text(ctx, penalty, cx, H / 2 + 50, { size: 16, weight: 700, align: 'center', color: '#fb7185', maxWidth: 640 });
     const last = state.log.at(-1);
     if (last) text(ctx, last.text, cx, H - 40, { size: 16, weight: 600, align: 'center', color: theme.textDim, maxWidth: 900 });
   }

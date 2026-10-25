@@ -7,7 +7,19 @@
 
 ---
 
-## 🆕 الجديد في الإصدار 2
+## 🆕 الجديد في الإصدار 2.5
+
+| النظام         | ماذا يقدّم                                                                                                                                                                                                                                 |
+| -------------- | ------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------ |
+| العقود اليومية | لوحة جديدة كل يوم (منتصف الليل بتوقيت بغداد): 5 عقود يومية منها عقد صعب دائماً، و3 عقود أسبوعية، تُدفع لحظة إنجازها. تبديل مجاني مرة يومياً، سلسلة مواظبة، صناديق للإنجاز الكامل. `/daily`                                                 |
+| عقوبة الخسارة  | في التحدي ضد لاعب: يخسر المهزوم **30% من خبرة مستواه** وقد يسقط **غرض واحد** من حقيبته **للفائز**، والاحتمال حسب الندرة (عادي 50% ... سري 0.01%). لا هروب من التحدي، فقط الاستسلام. تميمة الروح تتحطم بدل الغرض. أمام الوحوش: 10% خبرة فقط |
+| الزعماء المئة  | **100 زعيم** لكل منهم شكله الخاص (تيجان، قرون، أجنحة، هالات، عيون، رونات...): 55 زعيم قصة و45 زعيم منطقة يُقاتَلون مجدداً كل 6 ساعات، بغنائم وكؤوس وعناصر سرية نادرة جداً. `/boss`                                                         |
+| القصة          | **30 فصلاً جديداً** (9 أجزاء و55 فصلاً)، حتى المستوى 150، مع 8 قرارات جديدة. كل منطقة وحدث ومعلم وزعيم ووصفة مختوم حتى تبلغ فصله                                                                                                           |
+| المناطق        | **10 عوالم عائدة** جديدة (30 مكاناً)، ولكل مكان موارد وأحداث استكشاف ومعالم مخفية وجائزة إتقان. `/region`                                                                                                                                  |
+| الصناعة        | 35 وصفة تحول موارد المناطق إلى معدات وجرعات. `/craft`                                                                                                                                                                                      |
+| الأغراض        | ندرة جديدة: **سري**، و168 غرضاً جديداً، و9 تجار جدد، وصناديق تُفتح من الحقيبة                                                                                                                                                              |
+
+## الجديد في الإصدار 2
 
 | النظام    | ماذا يقدّم                                                                                                                                                                                                                                                                              |
 | --------- | --------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
@@ -103,6 +115,10 @@
 - `/class browse | view | choose | path | skills | loadout | equip | unequip`
 - `/story current | read | chapters | fight | bosses`
 - `/codex browse | entry | bestiary`
+- `/daily board | reroll | top` — العقود اليومية والأسبوعية
+- `/boss here | hall | info | fight | top` — الزعماء المئة
+- `/region view | explore | gather | landmarks` — محتوى المناطق
+- `/craft list | make` — الصناعة
 
 **الإدارة** (مخفية افتراضياً عن الأعضاء، والصلاحية تُفحص في الخادم عند كل استخدام)
 
@@ -183,7 +199,7 @@ src/index.js              الإقلاع: البيئة، القاعدة، الت
 src/config/               env.js (تحقق zod) و game.js (كل أرقام التوازن)
 src/core/                 التفاعلات، الصلاحيات، التهدئة، المجدول، السجلات
 src/db/                   الاتصال، الترحيل، migrations/*.sql
-src/content/              المحتوى: الكلاسات، مولّد المسارات والمهارات، القصة (story/act1-4.js)، الأرشيف (lore.js)
+src/content/              المحتوى: الكلاسات، القصة (story/act1-9.js)، الأرشيف، الزعماء، المناطق، الأغراض، الوصفات، قوالب العقود
 src/engine/               منطق نقي قابل للاختبار: القتال، التأثيرات، التقدم، المهام، التداول
 src/services/             قواعد اللعبة فوق قاعدة البيانات
 src/render/               محرك الصور (canvas) والبطاقات، الشخصيات 2D (sprites.js)، المشاهد، الشعارات
@@ -195,7 +211,8 @@ tests/                    اختبارات الوحدة والتكامل
 
 **إضافة محتوى**: أغراض، مهام، NPC، أماكن وأحداث تُضاف من داخل ديسكورد عبر `/admin` و `/gm`. ولتعديل العالم الافتراضي أو إضافة جداول، أنشئ ترحيلاً جديداً (`npm run db:generate`) ولا تعدّل ترحيلاً طُبّق سابقاً.
 **تأثير قتالي جديد**: أضف مدخلاً واحداً في `src/engine/effects.js`.
-**فصل قصة جديد**: أضف فصلاً في `src/content/story/act4.js` (أو جزءاً جديداً في `story/index.js`)، ثم شغّل `npm run tune:bosses`.
+**فصل قصة جديد**: أضف فصلاً في `src/content/story/act9.js` (أو جزءاً جديداً في `story/index.js`)، ثم شغّل `npm run tune:bosses -- --new`.
+**زعيم منطقة، حدث، معلم، وصفة أو غرض**: `src/content/bosses.js` و `regions.js` و `recipes.js` و `items.js` (تُزامَن مع القاعدة عند الإقلاع)، ثم `npm run tune:bosses -- --new --world` للزعماء.
 **مدخل أرشيف**: أضفه في `src/content/lore.js`، أو من ديسكورد عبر `/gm world lore` (يظهر في باب «مدونات الإدارة»).
 **الكلاسات**: كل كلاس سطر واحد في `src/content/classes.js`، والمسارات والمهارات تُولَّد منه وتُزامَن مع القاعدة تلقائياً عند الإقلاع.
 
@@ -218,5 +235,6 @@ Nexus is a Discord RPG/roleplay bot in plain JavaScript (Node 22, ESM) with disc
 - **Run**: copy `.env.example` → `.env`, `npm install`, `npm start`. Startup waits for Neon, applies SQL migrations (advisory-locked, pooler-safe), deploys slash commands only when they changed, logs in, and starts a DB-coordinated scheduler. Falls back automatically if the Message Content intent is not enabled.
 - **Systems**: characters (`NX-000001` IDs), stats/XP/levels, NX economy, inventory/equipment, skills, turn-based PvE/PvP combat with status effects and turn timers, quests with a rendered quest board and staff review, NPCs/shops, locations/travel/map, guilds, factions, jobs, relationships, trading with two-sided confirmation, achievements, leaderboards, phased events with voting, random events, lore archive, Tupperbox-safe RP XP.
 - **v2**: 55 classes × 30 paths × 100 skills (generated, synced to the DB on boot), 2D combat sprites that wear the player's avatar, a 25-chapter story with bosses and choices (`/story`), a 66-entry codex with spoiler gating and a bestiary (`/codex`), six new regions, simulation-tuned balance (`npm run tune:bosses`), and an optional ~170 MB art pack (`npm run assets`: 1,650 path crests, class and chapter posters, 4K wallpapers, monster portraits).
+- **v2.5**: daily/weekly contracts that change every day (`/daily`), a duel penalty (30% of level XP and one bag item to the winner, rarity-weighted down to 1 in 10,000 for secret items; 10% XP vs monsters), 100 bosses each with its own look (`/boss`), 30 more story chapters (55 total, level 150), ten new worlds and per-region exploration, gathering, landmarks and story-gated content (`/region`), crafting (`/craft`), a secret rarity and 168 new items.
 - **Admin**: `/admin` and `/gm`, gated by role **IDs** (Owner, Admin, Moderator, Event Manager, Lore Manager) checked server-side on every use, with a full audit log (DB + log channel).
 - **Quality**: `npm run check` runs ESLint, a build check (imports, Discord command size limits) and the Vitest suite. Integration tests drive the real handlers with simulated interactions against a real Postgres when `TEST_DATABASE_URL` is set.
