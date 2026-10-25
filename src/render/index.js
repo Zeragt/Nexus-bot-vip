@@ -13,3 +13,4 @@ export { IMAGE_EXT } from './draw.js';
 export { renderClassGallery, renderClassCard, renderPaths, renderSkillTree, renderLoadout, renderEmblemCard } from './cards/classes.js';
 export { renderStoryPage, renderChapterCover, renderChoice, renderChapterList } from './cards/story.js';
 export { renderCodexIndex, renderCodexEntry, renderBestiary, renderBossGallery } from './cards/codex.js';
+export { renderContracts, renderBossCard, renderRegion, renderBossHall } from './cards/expansion.js';

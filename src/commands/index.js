@@ -22,6 +22,7 @@ import {
 } from './social.js';
 import { eventCommand, eventComponent, randomEventComponent } from './event.js';
 import { adminCommand, gmCommand, adminComponent } from './admin.js';
+import { dailyCommand, dailyComponent, bossCommand, bossComponent, regionCommand, regionComponent, craftCommand, craftComponent } from './expansion.js';
 import { characterModals, profileNav, genericUi } from '../components/character.js';
 
 export const commandList = [
@@ -51,6 +52,10 @@ export const commandList = [
   classCommand,
   storyCommand,
   codexCommand,
+  dailyCommand,
+  bossCommand,
+  regionCommand,
+  craftCommand,
 ];
 
 export const componentList = [
@@ -71,6 +76,10 @@ export const componentList = [
   classComponent,
   storyComponent,
   codexComponent,
+  dailyComponent,
+  bossComponent,
+  regionComponent,
+  craftComponent,
 ];
 
 export function buildRegistry() {

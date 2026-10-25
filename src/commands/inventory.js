@@ -2,6 +2,7 @@ import { SlashCommandBuilder } from 'discord.js';
 import { send, card, ok, assertOwner } from '../core/ui.js';
 import { UserError } from '../core/errors.js';
 import { requireByUser, findByUser, loadCharacter } from '../services/characters.js';
+import { describeContracts } from '../services/progress.js';
 import { useItem, equipItem, unequipSlot, dropItem, ownedForAutocomplete, resolveItem, ownedQuantity, searchItems } from '../services/inventory.js';
 import { inventoryMessage } from '../views/game.js';
 import { renderItem, renderNotice } from '../render/index.js';
@@ -89,14 +90,21 @@ export default {
       if (res.energy) tiles.push({ label: 'الطاقة', value: `+${res.energy}  (${res.character.energy}/${res.character.maxEnergy})`, iconName: 'zap' });
       if (res.cleansed) tiles.push({ label: 'التطهير', value: 'زالت التأثيرات السلبية', iconName: 'sparkle', color: theme.success });
       if (res.buff) tiles.push({ label: res.buff.name, value: `${res.buff.minutes} دقيقة`, iconName: 'flame', color: theme.violet });
+      if (res.chest) {
+        if (res.chest.rewards.xp) tiles.push({ label: 'خبرة', value: `+${res.chest.rewards.xp}`, iconName: 'sparkle' });
+        if (res.chest.rewards.nx) tiles.push({ label: 'NX', value: `+${res.chest.rewards.nx}`, iconName: 'coin', color: theme.gold });
+        for (const it of res.chest.rewards.items.slice(0, 4))
+          tiles.push({ label: it.name, value: `x${it.quantity}`, iconName: 'gem', color: rarityColors[it.rarity] ?? theme.cyan });
+      }
       const buf = await renderNotice({
-        title: `استخدمت ${res.item.name}`,
-        subtitle: res.item.description,
-        iconName: 'flask',
+        title: res.chest ? `فتحت ${res.item.name}` : `استخدمت ${res.item.name}`,
+        subtitle: res.chest?.secret ? `!!! عنصر سري: ${res.chest.secret.name} !!!` : res.item.description,
+        iconName: res.chest ? 'box' : 'flask',
         color: rarityColors[res.item.rarity],
         tiles,
       });
-      return send(i, { files: [card(buf, 'use')] });
+      const notes = describeContracts(res.contracts);
+      return send(i, { content: notes ?? undefined, files: [card(buf, 'use')] });
     }
     if (sub === 'equip') {
       const res = await equipItem(uid, i.options.getString('item', true));

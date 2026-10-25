@@ -27,7 +27,7 @@ export async function challengeMessage({ id, challenger, opponent }) {
     subtitle: `${challenger.name} (LV ${challenger.level}) يتحدى ${opponent.name} (LV ${opponent.level})`,
     iconName: 'swords',
     color: '#ff4f7b',
-    body: 'لديك دقيقتان للرد. القتال بالأدوار: هجوم، مهارات، دفاع، أغراض، أو انسحاب.',
+    body: 'لديك دقيقتان للرد. لا هروب من التحدي: الخاسر يفقد 30% من خبرة مستواه، وقد يسقط غرض من حقيبته للفائز (حسب ندرته). تميمة الروح تحمي حقيبتك.',
   });
   return {
     content: `<@${opponent.userId}>`,
@@ -51,7 +51,9 @@ export function combatComponents(session) {
     row(
       button(cid('cb', 'atk', session.id), 'هجوم', ButtonStyle.Danger, { emoji: '⚔️' }),
       button(cid('cb', 'def', session.id), 'دفاع', ButtonStyle.Primary, { emoji: '🛡️' }),
-      button(cid('cb', 'flee', session.id), 'انسحاب', ButtonStyle.Secondary, { emoji: '🏃' }),
+      acts.flee
+        ? button(cid('cb', 'flee', session.id), 'انسحاب', ButtonStyle.Secondary, { emoji: '🏃' })
+        : button(cid('cb', 'surrender', session.id), 'استسلام', ButtonStyle.Secondary, { emoji: '🏳️' }),
     ),
   ];
   if (acts.skills.length) {
@@ -92,6 +94,7 @@ export async function combatMessage(session) {
     deadline: session.turnDeadline,
     kind: session.kind,
     rewards: s.rewardText ?? null,
+    penalty: s.penaltyText ?? null,
   });
   const turnUser = !s.finished ? activeFighter(s).userId : null;
   return {

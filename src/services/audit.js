@@ -24,6 +24,9 @@ export const ACTION_LABELS = {
   admin_action: 'إجراء إداري',
   class_chosen: 'اختيار كلاس أو مسار',
   story_chapter: 'إنهاء فصل من القصة',
+  boss_defeated: 'هزيمة زعيم منطقة',
+  item_crafted: 'صناعة غرض',
+  pvp_drop: 'سقوط غرض في تحدٍّ',
 };
 
 /**

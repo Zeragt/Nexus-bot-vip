@@ -32,6 +32,7 @@ export const rarityColors = {
   epic: '#a78bfa',
   legendary: '#f5b942',
   mythic: '#ff4fa3',
+  secret: '#f0f9ff',
 };
 
 export const difficultyColors = {

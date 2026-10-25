@@ -4,6 +4,10 @@ import { economy, ui } from '../config/game.js';
 import { EFFECTS } from '../engine/effects.js';
 import { requireByUser, loadCharacter, saveVitals } from './characters.js';
 import { audit } from './audit.js';
+import { CHESTS } from '../content/items.js';
+import { defaultRng } from '../engine/rng.js';
+import { grantRewards, describeRewards } from './rewards.js';
+import { track } from './progress.js';
 
 export function mapItem(r) {
   return {
@@ -164,13 +168,20 @@ async function ownedItemOrThrow(db, ch, input) {
 }
 
 /** Uses a consumable: heal, energy, cleanse or a timed buff. */
-export async function useItem(userId, input) {
+export async function useItem(userId, input, rng = defaultRng) {
   return tx(async (db) => {
     const ch = await requireByUser(userId, db, { lock: true });
     const { item } = await ownedItemOrThrow(db, ch, input);
     if (!item.usable || !item.useEffect) throw new UserError('هذا الغرض لا يمكن استخدامه');
     const fx = item.useEffect;
-    const result = { item, healed: 0, energy: 0, cleansed: false, buff: null };
+    const result = { item, healed: 0, energy: 0, cleansed: false, buff: null, chest: null };
+    if (fx.chest) {
+      result.chest = await openChest(db, ch, fx.chest, rng);
+      await removeItem(db, ch.id, item.id, 1);
+      result.contracts = await track(db, ch.id, 'use_item', { key: item.key });
+      result.character = await loadCharacter(db, ch.id);
+      return result;
+    }
     if (fx.heal || fx.energy) {
       if (fx.heal && ch.hp >= ch.maxHp && !fx.energy) throw new UserError('صحتك ممتلئة بالفعل');
       if (fx.energy && ch.energy >= ch.maxEnergy && !fx.heal) throw new UserError('طاقتك ممتلئة بالفعل');
@@ -196,9 +207,31 @@ export async function useItem(userId, input) {
       result.buff = { key: fx.buff, name: EFFECTS[fx.buff].name, minutes: fx.minutes ?? 30 };
     }
     await removeItem(db, ch.id, item.id, 1);
+    result.contracts = await track(db, ch.id, 'use_item', { key: item.key });
     result.character = await loadCharacter(db, ch.id);
     return result;
   });
+}
+
+/** Rolls a chest's loot table (content/items.js CHESTS) and pays it. */
+async function openChest(db, ch, name, rng) {
+  const table = CHESTS[name];
+  if (!table) throw new UserError('هذا الصندوق فارغ');
+  const items = [];
+  for (const [key, chance, [min, max]] of table.items) {
+    if (!rng.chance(chance)) continue;
+    const it = (await db.query('SELECT id, name_ar, rarity FROM items WHERE key = $1', [key])).rows[0];
+    if (it) items.push({ itemId: it.id, name: it.name_ar, rarity: it.rarity, quantity: rng.int(min, max) });
+  }
+  const scale = 1 + ch.level / 30;
+  const rewards = await grantRewards(db, ch.id, {
+    xp: Math.round(rng.int(...table.xp) * scale),
+    nx: Math.round(rng.int(...table.nx) * scale),
+    items,
+    kind: 'chest',
+    note: 'فتح صندوق',
+  });
+  return { rewards, text: describeRewards(rewards), secret: items.find((i) => i.rarity === 'secret') ?? null };
 }
 
 export async function equipItem(userId, input) {

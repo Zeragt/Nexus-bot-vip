@@ -4,7 +4,11 @@ import { grantXp } from './characters.js';
 async function metrics(db, characterId) {
   const { rows } = await db.query(
     `SELECT c.level, c.nx, c.combat_wins, c.quests_completed, c.shifts_worked, c.trades_completed,
-            (SELECT count(*)::int FROM character_locations WHERE character_id = c.id) AS locations
+            c.contracts_completed, c.items_crafted, c.pvp_wins,
+            (SELECT count(*)::int FROM character_locations WHERE character_id = c.id) AS locations,
+            (SELECT count(*)::int FROM character_bosses WHERE character_id = c.id AND kills > 0) AS world_bosses,
+            (SELECT count(*)::int FROM character_landmarks WHERE character_id = c.id) AS landmarks,
+            (SELECT chapter FROM character_story WHERE character_id = c.id) AS chapters
      FROM characters c WHERE c.id = $1`,
     [characterId],
   );
@@ -19,6 +23,12 @@ async function metrics(db, characterId) {
     shifts_worked: r.shifts_worked,
     trades_completed: r.trades_completed,
     locations: r.locations,
+    contracts: r.contracts_completed,
+    crafted: r.items_crafted,
+    pvp_wins: r.pvp_wins,
+    world_bosses: r.world_bosses,
+    landmarks: r.landmarks,
+    chapters: r.chapters ?? 0,
   };
 }
 

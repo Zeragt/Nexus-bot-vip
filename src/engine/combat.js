@@ -169,7 +169,12 @@ export function availableActions(state) {
   const items = Object.entries(f.items)
     .filter(([, it]) => it.qty > 0)
     .map(([key, it]) => ({ key, name: it.name, qty: it.qty }));
-  return { attack: true, defend: true, flee: true, silenced, skills, items };
+  return { attack: true, defend: true, flee: !isDuel(state), silenced, skills, items };
+}
+
+/** A duel between two players: no AI on either side. Nobody can run from a duel. */
+export function isDuel(state) {
+  return state.fighters.every((f) => !f.ai);
 }
 
 /**
@@ -215,6 +220,7 @@ export function performAction(prev, action, rng = defaultRng) {
       useItem(state, actor, action.key);
       break;
     case 'flee': {
+      if (isDuel(state)) throw new CombatError('لا يمكن الهرب من تحدٍّ بين لاعبين. يمكنك الاستسلام، لكن الخسارة لها ثمن');
       const chance = clamp(C.fleeBase + (actor.stats.agility - target.stats.agility) * C.fleePerAgilityDiff, 0.15, 0.85);
       if (rng.chance(chance)) {
         pushLog(state, `${actor.name} ينسحب من القتال`, 'info');

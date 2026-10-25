@@ -20,6 +20,7 @@ import { questBoard, activeQuests } from '../services/quests.js';
 import { listLocations, playersAt, getLocation, travelEnergyCost } from '../services/world.js';
 import { listNpcs } from '../services/npcs.js';
 import { visitedKeys } from '../services/characters.js';
+import { chaptersDone } from '../services/progress.js';
 import { listAchievements } from '../services/achievements.js';
 import { getPool } from '../db/pool.js';
 import { profileButtons } from './character.js';
@@ -189,18 +190,23 @@ export function questRewardCard(quest, rewards) {
 // World -------------------------------------------------------------------------
 export async function mapMessage(ch, viewerId) {
   const locations = await listLocations();
-  const buf = await renderMap({ locations, currentKey: ch.location?.key, visitedKeys: await visitedKeys(ch.id), playerLevel: ch.level });
+  const chapter = await chaptersDone(getPool(), ch.id);
+  const buf = await renderMap({ locations, currentKey: ch.location?.key, visitedKeys: await visitedKeys(ch.id), playerLevel: ch.level, chapter });
   const from = ch.location ? locations.find((l) => l.key === ch.location.key) : null;
+  // A select holds 25 options at most: open places first, then the nearest sealed ones.
   const options = locations
     .filter((l) => l.key !== ch.location?.key)
-    .map((l) => {
+    .map((l) => ({ l, sealed: (l.requiredChapter ?? 0) > chapter, lock: l.locked || l.minLevel > ch.level }))
+    .sort((a, b) => Number(a.sealed || a.lock) - Number(b.sealed || b.lock) || (a.l.requiredChapter ?? 0) - (b.l.requiredChapter ?? 0))
+    .slice(0, 25)
+    .map(({ l, sealed, lock }) => {
       const cost = travelEnergyCost(from, l);
-      const lock = l.locked || l.minLevel > ch.level;
+      const why = sealed ? ` • مختوم حتى الفصل ${l.requiredChapter}` : lock ? ` • مقفل (مستوى ${l.minLevel})` : '';
       return {
         label: l.nameAr,
         value: l.key,
-        description: `${l.name}${lock ? ` • مقفل (مستوى ${l.minLevel})` : ''}${cost ? ` • ${cost} طاقة` : ' • مجاني'}`,
-        emoji: lock ? '🔒' : l.region === 'city' ? '🏙️' : l.region === 'rift' ? '🌌' : '🌲',
+        description: `${l.name}${why}${cost ? ` • ${cost} طاقة` : ' • مجاني'}`.slice(0, 100),
+        emoji: sealed || lock ? '🔒' : l.region === 'city' ? '🏙️' : l.region === 'rift' ? '🌌' : l.region === 'beyond' ? '✨' : '🌲',
       };
     });
   return { files: [card(buf, 'map')], components: [row(select(cid('tv', 'go', viewerId), 'إلى أين تريد السفر؟', options))] };
@@ -271,7 +277,7 @@ export async function shopMessage({ npc, items, character }, viewerId) {
           select(
             cid('shop', 'buy', viewerId, npc.key),
             'اشترِ غرضاً (قطعة واحدة)',
-            buyable.map((i) => ({ label: `${i.name} — ${i.price} NX`, value: i.key, description: i.nameEn })),
+            buyable.slice(0, 25).map((i) => ({ label: `${i.name} — ${i.price} NX`, value: i.key, description: i.nameEn })),
           ),
         ),
       ]

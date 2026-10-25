@@ -12,6 +12,8 @@ import { adjustFactionRep } from './factions.js';
 import { startScriptedFight } from './combat.js';
 import { getSetting } from './settings.js';
 import { audit } from './audit.js';
+import { trackNow } from './progress.js';
+import { derivedLook } from '../content/bossRegistry.js';
 
 function mapProgress(r) {
   return {
@@ -90,11 +92,13 @@ export async function readPage(userId, chapterKey, page) {
   }
   const total = chapter.pages.length;
   const p = Math.min(Math.max(1, page), total);
-  if ((progress.readPages[chapter.key] ?? 0) < p) {
+  const before = progress.readPages[chapter.key] ?? 0;
+  if (before < p) {
     await getPool().query(
       `UPDATE character_story SET read_pages = read_pages || jsonb_build_object($2::text, $3::int), updated_at = now() WHERE character_id = $1`,
       [ch.id, chapter.key, p],
     );
+    await trackNow(ch.id, 'story_read', { key: chapter.key, amount: p - before }).catch(() => null);
   }
   return { ch, chapter, page: p, total, progress, completed: chapter.index < progress.chapter };
 }
@@ -133,14 +137,19 @@ export async function makeChoice(userId, chapterKey, optionIndex) {
 // scripts/tune-bosses.js, which simulates hundreds of fights per chapter.
 export const bossStatLevel = (level) => Math.round(level * 0.62 + 1);
 export function bossHpMult(chapter) {
-  return (1.5 + (chapter.index / 24) * 1.4) * (BOSS_TUNE[chapter.key] ?? 1);
+  return (1.5 + (Math.min(chapter.index, 24) / 24) * 1.4 + Math.max(0, chapter.index - 24) * 0.02) * (BOSS_TUNE[chapter.key] ?? 1);
 }
 const bossStatMult = (chapter) => Math.min(1.06, Math.max(1, chapter.boss.statMult ?? 1));
 
 /** Spawns the chapter boss at the chapter's level (not the player's), so story fights stay tuned. */
 export function spawnBoss(chapter, rng = defaultRng) {
   return spawnEnemy(
-    { ...chapter.boss, hpMult: bossHpMult(chapter), statMult: bossStatMult(chapter) },
+    {
+      ...chapter.boss,
+      look: chapter.boss.look ?? derivedLook(chapter.boss.key, chapter.boss.archetype),
+      hpMult: bossHpMult(chapter),
+      statMult: bossStatMult(chapter),
+    },
     { playerLevel: chapter.level, boss: true, statLevel: bossStatLevel(chapter.level) },
     rng,
   );
