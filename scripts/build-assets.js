@@ -241,13 +241,13 @@ async function bestiary() {
   }
 }
 
-// 7. An icon for every skill (256×256), grouped by class (and by path for signature skills).
+// 7. An icon for every skill (384×384), grouped by class (and by path for signature skills).
 async function skillIcons() {
   for (const sk of allGeneratedSkills()) {
-    const c = createCanvas(256, 256);
-    drawSkillIcon(c.getContext('2d'), sk, { size: 256 });
+    const c = createCanvas(384, 384);
+    drawSkillIcon(c.getContext('2d'), sk, { size: 384 });
     const dir = sk.subclassKey ? `art/skills/${sk.classKey}/${sk.subclassKey.split('.')[1] ?? 'path'}` : `art/skills/${sk.classKey ?? 'common'}`;
-    await save(`${dir}/${sk.key}.webp`, c, 90);
+    await save(`${dir}/${sk.key}.webp`, c, 95);
   }
 }
 
