@@ -1,8 +1,5 @@
 node_modules/
+client/dist/
+data/
 .env
-.env.*
-!.env.example
-preview/
-coverage/
 *.log
-.DS_Store
